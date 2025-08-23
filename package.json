@@ -1,0 +1,39 @@
+{
+  "name": "ng-firebase-signals",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "@angular/common": "^16.0.0",
+    "@angular/core": "^16.0.0",
+    "firebase": "^10.0.0",
+    "@google/generative-ai": "^0.20.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "@vitest/ui": "^2.0.0",
+    "typescript": "^5.0.0",
+    "tsc-alias": "^1.8.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "build:watch": "tsc -p tsconfig.lib.json --watch",
+    "build:prod": "tsc -p tsconfig.lib.prod.json",
+    "link": "npm run build && npm link",
+    "link:watch": "npm run build:watch & npm link",
+    "unlink": "npm unlink",
+    "clean": "rm -rf dist out-tsc",
+    "dev": "./scripts/dev-link.sh",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "sideEffects": false
+}
