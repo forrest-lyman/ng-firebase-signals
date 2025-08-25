@@ -1,600 +1,629 @@
 # Examples
 
-Practical examples and integration patterns for ng-firebase-signals.
+This document provides practical examples of how to use the ng-firebase-signals library in real Angular applications.
 
-## Basic Integration
+## Basic Setup
 
-### Simple User Profile
+First, configure Firebase in your app:
 
 ```typescript
-import { Component, inject } from '@angular/core';
-import { docData, useDocRef } from 'ng-firebase-signals';
-import { createUserState } from 'ng-firebase-signals';
+// app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideFirebase } from '@ng-firebase-signals/core';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideFirebase({
+      apiKey: 'your-api-key',
+      authDomain: 'your-project.firebaseapp.com',
+      projectId: 'your-project-id',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: 'your-app-id',
+      googleAI: {
+        apiKey: 'your-google-ai-key'
+      }
+    })
+  ]
+};
+```
+
+## Authentication Examples
+
+### Simple Login Component
+
+```typescript
+// login.component.ts
+import { Component } from '@angular/core';
+import { initializeAuth, signInWithGoogle, signInWithEmail, userState } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-login',
+  template: `
+    <div *ngIf="userState().isLoading">Loading...</div>
+    
+    <div *ngIf="!userState().isAuthenticated && !userState().isLoading">
+      <h2>Sign In</h2>
+      
+      <button (click)="loginWithGoogle()" [disabled]="isLoading">
+        {{ isLoading ? 'Signing In...' : 'Sign In with Google' }}
+      </button>
+      
+      <form (ngSubmit)="loginWithEmail()" #loginForm="ngForm">
+        <input 
+          type="email" 
+          [(ngModel)]="email" 
+          name="email" 
+          placeholder="Email" 
+          required>
+        
+        <input 
+          type="password" 
+          [(ngModel)]="password" 
+          name="password" 
+          placeholder="Password" 
+          required>
+        
+        <button type="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Signing In...' : 'Sign In' }}
+        </button>
+      </form>
+      
+      <div *ngIf="error" class="error">{{ error }}</div>
+    </div>
+    
+    <div *ngIf="userState().isAuthenticated">
+      <h2>Welcome, {{ userState().currentUser?.displayName }}!</h2>
+      <button (click)="logout()">Sign Out</button>
+    </div>
+  `
+})
+export class LoginComponent {
+  userState = userState;
+  email = '';
+  password = '';
+  isLoading = false;
+  error = '';
+  
+  constructor() {
+    initializeAuth();
+  }
+  
+  async loginWithGoogle() {
+    this.isLoading = true;
+    this.error = '';
+    
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+  
+  async loginWithEmail() {
+    if (!this.email || !this.password) return;
+    
+    this.isLoading = true;
+    this.error = '';
+    
+    try {
+      await signInWithEmail(this.email, this.password);
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+  
+  async logout() {
+    try {
+      await signOut();
+    } catch (error: any) {
+      console.error('Logout failed:', error);
+    }
+  }
+}
+```
+
+### User Profile Management
+
+```typescript
+// profile.component.ts
+import { Component } from '@angular/core';
+import { userState, updateUserProfile, changePassword } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-profile',
+  template: `
+    <div *ngIf="userState().currentUser">
+      <h2>Profile</h2>
+      
+      <form (ngSubmit)="updateProfile()" #profileForm="ngForm">
+        <div>
+          <label>Display Name:</label>
+          <input 
+            type="text" 
+            [(ngModel)]="displayName" 
+            name="displayName" 
+            [value]="userState().currentUser?.displayName || ''">
+        </div>
+        
+        <div>
+          <label>Photo URL:</label>
+          <input 
+            type="url" 
+            [(ngModel)]="photoURL" 
+            name="photoURL" 
+            [value]="userState().currentUser?.photoURL || ''">
+        </div>
+        
+        <button type="submit" [disabled]="isUpdating">
+          {{ isUpdating ? 'Updating...' : 'Update Profile' }}
+        </button>
+      </form>
+      
+      <div *ngIf="profileMessage" [class]="profileMessageClass">
+        {{ profileMessage }}
+      </div>
+      
+      <h3>Change Password</h3>
+      <form (ngSubmit)="changeUserPassword()" #passwordForm="ngForm">
+        <div>
+          <label>New Password:</label>
+          <input 
+            type="password" 
+            [(ngModel)]="newPassword" 
+            name="newPassword" 
+            required>
+        </div>
+        
+        <button type="submit" [disabled]="isChangingPassword">
+          {{ isChangingPassword ? 'Changing...' : 'Change Password' }}
+        </button>
+      </form>
+      
+      <div *ngIf="passwordMessage" [class]="passwordMessageClass">
+        {{ passwordMessage }}
+      </div>
+    </div>
+  `
+})
+export class ProfileComponent {
+  userState = userState;
+  displayName = '';
+  photoURL = '';
+  newPassword = '';
+  isUpdating = false;
+  isChangingPassword = false;
+  profileMessage = '';
+  profileMessageClass = '';
+  passwordMessage = '';
+  passwordMessageClass = '';
+  
+  async updateProfile() {
+    this.isUpdating = true;
+    this.profileMessage = '';
+    
+    try {
+      await updateUserProfile(this.displayName, this.photoURL);
+      this.profileMessage = 'Profile updated successfully!';
+      this.profileMessageClass = 'success';
+    } catch (error: any) {
+      this.profileMessage = `Update failed: ${error.message}`;
+      this.profileMessageClass = 'error';
+    } finally {
+      this.isUpdating = false;
+    }
+  }
+  
+  async changeUserPassword() {
+    if (!this.newPassword) return;
+    
+    this.isChangingPassword = true;
+    this.passwordMessage = '';
+    
+    try {
+      await changePassword(this.newPassword);
+      this.passwordMessage = 'Password changed successfully!';
+      this.passwordMessageClass = 'success';
+      this.newPassword = '';
+    } catch (error: any) {
+      this.passwordMessage = `Password change failed: ${error.message}`;
+      this.passwordMessageClass = 'error';
+    } finally {
+      this.isChangingPassword = false;
+    }
+  }
+}
+```
+
+## Firestore Examples
+
+### Real-time Document Listener
+
+```typescript
+// user-profile.component.ts
+import { Component, inject, DestroyRef } from '@angular/core';
+import { docData } from '@ng-firebase-signals/core';
+import { userState } from '@ng-firebase-signals/core';
 
 @Component({
   selector: 'app-user-profile',
   template: `
-    <div *ngIf="authState.user()">
-      <h2>{{ authState.user()?.displayName }}</h2>
-      <p>{{ authState.user()?.email }}</p>
+    <div *ngIf="userState().currentUser">
+      <h2>User Profile</h2>
       
-      <div *ngIf="userProfile.data()">
-        <h3>Profile Details</h3>
-        <p>Bio: {{ userProfile.data()?.bio }}</p>
-        <p>Location: {{ userProfile.data()?.location }}</p>
+      <div *ngIf="profileData() as profile; else loading">
+        <p><strong>Name:</strong> {{ profile.displayName }}</p>
+        <p><strong>Email:</strong> {{ profile.email }}</p>
+        <p><strong>Created:</strong> {{ profile.createdAt | date }}</p>
+        <p><strong>Last Login:</strong> {{ profile.lastLogin | date }}</p>
       </div>
       
-      <div *ngIf="userProfile.status() === 'loading'">Loading...</div>
-      <div *ngIf="userProfile.error()">Error: {{ userProfile.error() }}</div>
+      <ng-template #loading>
+        <p>Loading profile...</p>
+      </ng-template>
     </div>
   `
 })
 export class UserProfileComponent {
-  authState = createUserState();
-  userProfile = docData(useDocRef('users/123'));
+  userState = userState;
+  destroyRef = inject(DestroyRef);
+  
+  profileData = docData(
+    `users/${this.userState().currentUser?.uid}`,
+    { destroyRef: this.destroyRef }
+  );
 }
 ```
+
+### Collection with Query
+
+```typescript
+// posts.component.ts
+import { Component, inject, DestroyRef } from '@angular/core';
+import { collectionData, createQuery, whereField, orderByField, limitResults } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-posts',
+  template: `
+    <h2>Recent Posts</h2>
+    
+    <div *ngFor="let post of posts()" class="post">
+      <h3>{{ post.title }}</h3>
+      <p>{{ post.content }}</p>
+      <small>By {{ post.author }} on {{ post.createdAt | date }}</small>
+    </div>
+    
+    <div *ngIf="posts().length === 0">
+      No posts found.
+    </div>
+  `
+})
+export class PostsComponent {
+  destroyRef = inject(DestroyRef);
+  
+  posts = collectionData(
+    'posts',
+    createQuery(
+      whereField('published', '==', true),
+      orderByField('createdAt', 'desc'),
+      limitResults(10)
+    ),
+    { destroyRef: this.destroyRef }
+  );
+}
+```
+
+## Storage Examples
 
 ### File Upload with Progress
 
 ```typescript
+// file-upload.component.ts
 import { Component } from '@angular/core';
-import { uploadFile } from 'ng-firebase-signals';
+import { uploadFile } from '@ng-firebase-signals/core';
 
 @Component({
   selector: 'app-file-upload',
   template: `
-    <input type="file" (change)="onFileSelected($event)">
-    
-    <div *ngIf="fileUpload.progress()" class="progress">
-      <div class="progress-bar">
-        <div [style.width.%]="fileUpload.progress()?.percentage"></div>
-      </div>
-      <p>{{ fileUpload.progress()?.percentage | number:'1.0-1' }}%</p>
+    <div class="upload-section">
+      <input 
+        type="file" 
+        (change)="onFileSelected($event)" 
+        accept="image/*,video/*"
+        #fileInput>
+      
+      <button (click)="fileInput.click()" [disabled]="isUploading">
+        Select File
+      </button>
+      
+      <button 
+        (click)="uploadSelectedFile()" 
+        [disabled]="!selectedFile || isUploading">
+        {{ isUploading ? 'Uploading...' : 'Upload' }}
+      </button>
     </div>
     
-    <div *ngIf="fileUpload.status() === 'success'">
-      File uploaded! URL: {{ fileUpload.data()?.downloadURL }}
+    <div *ngIf="uploadProgress() > 0 && uploadProgress() < 100" class="progress">
+      <div class="progress-bar" [style.width.%]="uploadProgress()"></div>
+      <span>{{ uploadProgress() | number:'1.0-0' }}%</span>
+    </div>
+    
+    <div *ngIf="uploadStatus() === 'success'" class="success">
+      File uploaded successfully!
+    </div>
+    
+    <div *ngIf="uploadStatus() === 'error'" class="error">
+      Upload failed: {{ uploadError() }}
     </div>
   `
 })
 export class FileUploadComponent {
-  fileUpload = uploadFile('uploads/', null);
+  selectedFile: File | null = null;
+  isUploading = false;
+  
+  uploadData = uploadFile('uploads/');
+  
+  get uploadProgress() { return this.uploadData.progress; }
+  get uploadStatus() { return this.uploadData.status; }
+  get uploadError() { return this.uploadData.error; }
   
   onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      this.fileUpload = uploadFile(`uploads/${file.name}`, file);
-      this.fileUpload.startUpload();
+    this.selectedFile = event.target.files[0];
+  }
+  
+  async uploadSelectedFile() {
+    if (!this.selectedFile) return;
+    
+    this.isUploading = true;
+    
+    try {
+      await this.uploadData.upload(this.selectedFile);
+      this.selectedFile = null;
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      this.isUploading = false;
     }
   }
 }
 ```
 
-### AI Text Generation
+### File List and Download
 
 ```typescript
-import { Component } from '@angular/core';
-import { generateText } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-ai-generator',
-  template: `
-    <textarea #prompt placeholder="Enter your prompt..."></textarea>
-    <button (click)="generate(prompt.value)">Generate</button>
-    
-    <div *ngIf="textGenerator.data()">
-      <h3>Generated Text:</h3>
-      <p>{{ textGenerator.data()?.text }}</p>
-    </div>
-    
-    <div *ngIf="textGenerator.status() === 'loading'">Generating...</div>
-  `
-})
-export class AIGeneratorComponent {
-  textGenerator = generateText('');
-  
-  async generate(prompt: string) {
-    if (prompt.trim()) {
-      this.textGenerator = generateText(prompt);
-      await this.textGenerator.generate();
-    }
-  }
-}
-```
-
-## Advanced Patterns
-
-### Real-time Chat Application
-
-```typescript
-import { Component } from '@angular/core';
-import { collectionData, useCollectionRef, createQuery, orderByField, limitResults } from 'ng-firebase-signals';
-import { createChat } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-chat',
-  template: `
-    <div class="chat-container">
-      <div class="messages">
-        <div *ngFor="let message of messages.data()" class="message">
-          <strong>{{ message.userName }}:</strong> {{ message.text }}
-        </div>
-      </div>
-      
-      <div class="input-area">
-        <input #messageInput placeholder="Type a message...">
-        <button (click)="sendMessage(messageInput.value)">Send</button>
-      </div>
-    </div>
-  `
-})
-export class ChatComponent {
-  messages = collectionData(
-    createQuery(
-      useCollectionRef('messages'),
-      orderByField('timestamp', 'desc'),
-      limitResults(50)
-    )
-  );
-  
-  chatSession = createChat('You are a helpful assistant.');
-  
-  sendMessage(text: string) {
-    // Implementation for sending messages
-  }
-}
-```
-
-### Dashboard with Multiple Data Sources
-
-```typescript
-import { Component } from '@angular/core';
-import { docData, collectionData, useDocRef, useCollectionRef } from 'ng-firebase-signals';
-import { listFiles } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-dashboard',
-  template: `
-    <div class="dashboard">
-      <div class="stats">
-        <h3>User Stats</h3>
-        <p>Total Users: {{ users.data()?.length || 0 }}</p>
-        <p>Active Users: {{ activeUsers.data()?.length || 0 }}</p>
-      </div>
-      
-      <div class="files">
-        <h3>Recent Files</h3>
-        <div *ngFor="let file of files.data()?.files" class="file-item">
-          {{ file.name }} ({{ file.size | fileSize }})
-        </div>
-      </div>
-      
-      <div class="profile">
-        <h3>Your Profile</h3>
-        <div *ngIf="profile.data()">
-          <p>{{ profile.data()?.displayName }}</p>
-          <p>{{ profile.data()?.email }}</p>
-        </div>
-      </div>
-    </div>
-  `
-})
-export class DashboardComponent {
-  users = collectionData(useCollectionRef('users'));
-  activeUsers = collectionData(useCollectionRef('users'));
-  files = listFiles('uploads/');
-  profile = docData(useDocRef('users/current-user-id'));
-}
-```
-
-### Form with Real-time Validation
-
-```typescript
-import { Component } from '@angular/core';
-import { docData, useDocRef } from 'ng-firebase-signals';
-import { createUser } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-user-form',
-  template: `
-    <form (ngSubmit)="onSubmit()">
-      <input [(ngModel)]="userData.email" name="email" type="email" placeholder="Email">
-      <input [(ngModel)]="userData.password" name="password" type="password" placeholder="Password">
-      
-      <button type="submit" [disabled]="userCreation.status() === 'loading'">
-        {{ userCreation.status() === 'loading' ? 'Creating...' : 'Create User' }}
-      </button>
-    </form>
-    
-    <div *ngIf="userCreation.error()" class="error">
-      {{ userCreation.error() }}
-    </div>
-    
-    <div *ngIf="userCreation.status() === 'success'" class="success">
-      User created successfully!
-    </div>
-  `
-})
-export class UserFormComponent {
-  userData = { email: '', password: '' };
-  userCreation = createUser('', '');
-  
-  onSubmit() {
-    this.userCreation = createUser(this.userData.email, this.userData.password);
-    this.userCreation.create();
-  }
-}
-```
-
-## Integration Patterns
-
-### Service Layer Pattern
-
-```typescript
-import { Injectable, inject } from '@angular/core';
-import { docData, useDocRef, collectionData, useCollectionRef } from 'ng-firebase-signals';
-import { uploadFile, listFiles } from 'ng-firebase-signals';
-
-@Injectable({ providedIn: 'root' })
-export class UserService {
-  getUserProfile(userId: string) {
-    return docData(useDocRef(`users/${userId}`));
-  }
-  
-  getUsers() {
-    return collectionData(useCollectionRef('users'));
-  }
-  
-  uploadUserAvatar(userId: string, file: File) {
-    return uploadFile(`users/${userId}/avatar`, file);
-  }
-  
-  getUserFiles(userId: string) {
-    return listFiles(`users/${userId}/files`);
-  }
-}
-
-// Usage in component
-@Component({...})
-export class UserComponent {
-  constructor(private userService: UserService) {}
-  
-  userProfile = this.userService.getUserProfile('123');
-  users = this.userService.getUsers();
-}
-```
-
-### State Management Pattern
-
-```typescript
-import { Injectable, signal, computed } from '@angular/core';
-import { docData, useDocRef } from 'ng-firebase-signals';
-
-@Injectable({ providedIn: 'root' })
-export class AppStateService {
-  private currentUser = signal<any>(null);
-  private userProfile = signal<any>(null);
-  
-  // Computed values
-  isAuthenticated = computed(() => !!this.currentUser());
-  userDisplayName = computed(() => this.currentUser()?.displayName || 'Anonymous');
-  
-  // Firestore data
-  userProfileData = docData(useDocRef('users/current-user-id'));
-  
-  constructor() {
-    // Sync Firestore data with local state
-    effect(() => {
-      const profile = this.userProfileData.data();
-      if (profile) {
-        this.userProfile.set(profile);
-      }
-    });
-  }
-  
-  setCurrentUser(user: any) {
-    this.currentUser.set(user);
-  }
-  
-  clearUser() {
-    this.currentUser.set(null);
-    this.userProfile.set(null);
-  }
-}
-```
-
-### Error Boundary Pattern
-
-```typescript
-import { Component, inject } from '@angular/core';
-import { docData, useDocRef } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-error-boundary',
-  template: `
-    <ng-container *ngIf="!hasError(); else errorTemplate">
-      <ng-content></ng-content>
-    </ng-container>
-    
-    <ng-template #errorTemplate>
-      <div class="error-boundary">
-        <h3>Something went wrong</h3>
-        <p>{{ errorMessage() }}</p>
-        <button (click)="retry()">Retry</button>
-      </div>
-    </ng-template>
-  `
-})
-export class ErrorBoundaryComponent {
-  private hasError = signal(false);
-  private errorMessage = signal('');
-  
-  retry() {
-    this.hasError.set(false);
-    this.errorMessage.set('');
-  }
-  
-  setError(message: string) {
-    this.hasError.set(true);
-    this.errorMessage.set(message);
-  }
-}
-
-// Usage
-@Component({
-  selector: 'app-safe-component',
-  template: `
-    <app-error-boundary>
-      <app-user-profile></app-user-profile>
-    </app-error-boundary>
-  `
-})
-export class SafeComponent {}
-```
-
-## Performance Optimization
-
-### Lazy Loading Data
-
-```typescript
-import { Component, inject } from '@angular/core';
-import { docData, useDocRef } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-lazy-profile',
-  template: `
-    <div *ngIf="shouldLoadProfile()">
-      <app-user-profile [userId]="userId()"></app-user-profile>
-    </div>
-    
-    <button *ngIf="!shouldLoadProfile()" (click)="loadProfile()">
-      Load Profile
-    </button>
-  `
-})
-export class LazyProfileComponent {
-  private shouldLoad = signal(false);
-  userId = signal('123');
-  
-  shouldLoadProfile() {
-    return this.shouldLoad();
-  }
-  
-  loadProfile() {
-    this.shouldLoad.set(true);
-  }
-}
-```
-
-### Debounced Search
-
-```typescript
-import { Component, inject } from '@angular/core';
-import { collectionData, useCollectionRef, createQuery, whereField } from 'ng-firebase-signals';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-
-@Component({
-  selector: 'app-search',
-  template: `
-    <input #searchInput placeholder="Search users..." (input)="onSearch(searchInput.value)">
-    
-    <div *ngFor="let user of searchResults.data()" class="user-item">
-      {{ user.displayName }}
-    </div>
-  `
-})
-export class SearchComponent {
-  private searchQuery = signal('');
-  searchResults = collectionData(useCollectionRef('users'));
-  
-  onSearch(query: string) {
-    this.searchQuery.set(query);
-    
-    if (query.trim()) {
-      this.searchResults = collectionData(
-        createQuery(
-          useCollectionRef('users'),
-          whereField('displayName', '>=', query),
-          whereField('displayName', '<=', query + '\uf8ff')
-        )
-      );
-    }
-  }
-}
-```
-
-## Testing Examples
-
-### Unit Testing
-
-```typescript
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideFirebase } from 'ng-firebase-signals';
-import { UserProfileComponent } from './user-profile.component';
-
-describe('UserProfileComponent', () => {
-  let component: UserProfileComponent;
-  let fixture: ComponentFixture<UserProfileComponent>;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [
-        provideFirebase({
-          apiKey: 'test-key',
-          authDomain: 'test.firebaseapp.com',
-          projectId: 'test-project',
-          storageBucket: 'test.appspot.com',
-          messagingSenderId: '123',
-          appId: 'test-app'
-        })
-      ]
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(UserProfileComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
-
-  it('should show loading state initially', () => {
-    expect(component.userProfile.status()).toBe('loading');
-  });
-
-  it('should display user profile when data loads', () => {
-    // Mock Firestore response
-    // Test implementation here
-  });
-});
-```
-
-### Integration Testing
-
-```typescript
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideFirebase } from 'ng-firebase-signals';
-import { FileUploadComponent } from './file-upload.component';
-
-describe('FileUploadComponent Integration', () => {
-  let component: FileUploadComponent;
-  let fixture: ComponentFixture<FileUploadComponent>;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      providers: [
-        provideFirebase({
-          apiKey: 'test-key',
-          authDomain: 'test.firebaseapp.com',
-          projectId: 'test-project',
-          storageBucket: 'test.appspot.com',
-          messagingSenderId: '123',
-          appId: 'test-app'
-        })
-      ]
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(FileUploadComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
-
-  it('should handle file selection and upload', async () => {
-    // Create mock file
-    const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-    
-    // Simulate file selection
-    const event = { target: { files: [file] } };
-    component.onFileSelected(event);
-    
-    // Verify upload was initiated
-    expect(component.fileUpload.status()).toBe('loading');
-  });
-});
-```
-
-## Common Use Cases
-
-### User Authentication Flow
-
-```typescript
-import { Component, inject } from '@angular/core';
-import { createUserState, signInWithGoogle, signOut } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-auth-flow',
-  template: `
-    <div *ngIf="!authState.user(); else authenticated">
-      <button (click)="signIn()">Sign In with Google</button>
-    </div>
-    
-    <ng-template #authenticated>
-      <div>
-        <h2>Welcome, {{ authState.user()?.displayName }}</h2>
-        <button (click)="logout()">Sign Out</button>
-      </div>
-    </ng-template>
-  `
-})
-export class AuthFlowComponent {
-  authState = createUserState();
-  signInAction = signInWithGoogle();
-  signOutAction = signOut();
-  
-  async signIn() {
-    await this.signInAction.signIn();
-  }
-  
-  async logout() {
-    await this.signOutAction.logout();
-  }
-}
-```
-
-### File Management System
-
-```typescript
-import { Component } from '@angular/core';
-import { uploadFile, listFiles, deleteFile } from 'ng-firebase-signals';
+// file-manager.component.ts
+import { Component, inject, DestroyRef } from '@angular/core';
+import { listFiles, downloadFile } from '@ng-firebase-signals/core';
 
 @Component({
   selector: 'app-file-manager',
   template: `
-    <div class="file-manager">
-      <input type="file" (change)="onFileSelected($event)">
+    <h2>Files</h2>
+    
+    <div *ngFor="let file of files()" class="file-item">
+      <span>{{ file.name }}</span>
+      <span>{{ file.size | fileSize }}</span>
+      <span>{{ file.updated | date }}</span>
       
-      <div class="file-list">
-        <div *ngFor="let file of files.data()?.files" class="file-item">
-          <span>{{ file.name }}</span>
-          <span>{{ file.size | fileSize }}</span>
-          <button (click)="deleteFile(file.fullPath)">Delete</button>
-        </div>
-      </div>
-      
-      <div *ngIf="currentUpload.progress()" class="upload-progress">
-        {{ currentUpload.progress()?.percentage }}%
-      </div>
+      <button (click)="downloadFile(file.fullPath)">
+        Download
+      </button>
+    </div>
+    
+    <div *ngIf="files().length === 0">
+      No files found.
     </div>
   `
 })
 export class FileManagerComponent {
-  files = listFiles('uploads/');
-  currentUpload = uploadFile('uploads/', null);
-  currentDeletion = deleteFile('');
+  destroyRef = inject(DestroyRef);
   
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      this.currentUpload = uploadFile(`uploads/${file.name}`, file);
-      this.currentUpload.startUpload();
+  files = listFiles('uploads/', { destroyRef: this.destroyRef });
+  
+  async downloadFile(path: string) {
+    try {
+      const download = downloadFile(path);
+      await download.download();
+      
+      // The download.data() signal will contain the file info
+      const fileData = download.data();
+      if (fileData) {
+        // Create download link
+        const link = document.createElement('a');
+        link.href = fileData.url;
+        link.download = fileData.file.name;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
     }
-  }
-  
-  deleteFile(path: string) {
-    this.currentDeletion = deleteFile(path);
-    this.currentDeletion.deleteFile().then(() => {
-      this.files.list(); // Refresh list
-    });
   }
 }
 ```
 
-These examples demonstrate the core patterns and best practices for using ng-firebase-signals in real applications.
+## AI Examples
+
+### Text Generation
+
+```typescript
+// ai-chat.component.ts
+import { Component } from '@angular/core';
+import { generateText, createChat } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-ai-chat',
+  template: `
+    <div class="chat-container">
+      <div class="messages">
+        <div *ngFor="let message of messages" 
+             [class]="message.role === 'user' ? 'user-message' : 'ai-message'">
+          <strong>{{ message.role === 'user' ? 'You' : 'AI' }}:</strong>
+          {{ message.content }}
+        </div>
+      </div>
+      
+      <div class="input-section">
+        <textarea 
+          [(ngModel)]="userInput" 
+          placeholder="Type your message..."
+          rows="3">
+        </textarea>
+        
+        <button (click)="sendMessage()" [disabled]="isGenerating">
+          {{ isGenerating ? 'Generating...' : 'Send' }}
+        </button>
+      </div>
+    </div>
+  `
+})
+export class AIChatComponent {
+  userInput = '';
+  messages: Array<{ role: 'user' | 'ai', content: string }> = [];
+  isGenerating = false;
+  
+  async sendMessage() {
+    if (!this.userInput.trim() || this.isGenerating) return;
+    
+    const userMessage = this.userInput.trim();
+    this.messages.push({ role: 'user', content: userMessage });
+    this.userInput = '';
+    this.isGenerating = true;
+    
+    try {
+      const response = await generateText(userMessage, {
+        model: 'gemini-pro',
+        temperature: 0.7
+      });
+      
+      this.messages.push({ role: 'ai', content: response.text });
+    } catch (error: any) {
+      this.messages.push({ role: 'ai', content: `Error: ${error.message}` });
+    } finally {
+      this.isGenerating = false;
+    }
+  }
+}
+```
+
+### Streaming Chat
+
+```typescript
+// streaming-chat.component.ts
+import { Component } from '@angular/core';
+import { generateTextStream } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-streaming-chat',
+  template: `
+    <div class="chat-container">
+      <div class="messages">
+        <div *ngFor="let message of messages" class="message">
+          <strong>{{ message.role }}:</strong>
+          <span [innerHTML]="message.content"></span>
+        </div>
+      </div>
+      
+      <div class="input-section">
+        <textarea 
+          [(ngModel)]="userInput" 
+          placeholder="Ask me anything..."
+          rows="3">
+        </textarea>
+        
+        <button (click)="startStreaming()" [disabled]="isStreaming">
+          {{ isStreaming ? 'Streaming...' : 'Start Streaming' }}
+        </button>
+      </div>
+    </div>
+  `
+})
+export class StreamingChatComponent {
+  userInput = '';
+  messages: Array<{ role: string, content: string }> = [];
+  isStreaming = false;
+  
+  async startStreaming() {
+    if (!this.userInput.trim() || this.isStreaming) return;
+    
+    const userMessage = this.userInput.trim();
+    this.messages.push({ role: 'User', content: userMessage });
+    this.userInput = '';
+    this.isStreaming = true;
+    
+    try {
+      const stream = generateTextStream(userMessage, {
+        model: 'gemini-pro',
+        temperature: 0.8
+      });
+      
+      let aiResponse = '';
+      this.messages.push({ role: 'AI', content: aiResponse });
+      
+      for await (const chunk of stream) {
+        aiResponse += chunk.text;
+        // Update the last message
+        this.messages[this.messages.length - 1].content = aiResponse;
+      }
+    } catch (error: any) {
+      this.messages.push({ role: 'AI', content: `Error: ${error.message}` });
+    } finally {
+      this.isStreaming = false;
+    }
+  }
+}
+```
+
+## Complete App Example
+
+Here's a complete example showing how to integrate multiple features:
+
+```typescript
+// app.component.ts
+import { Component } from '@angular/core';
+import { initializeAuth, userState, signOut } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <nav>
+      <h1>My App</h1>
+      <div *ngIf="userState().isAuthenticated">
+        <span>Welcome, {{ userState().currentUser?.displayName }}</span>
+        <button (click)="logout()">Sign Out</button>
+      </div>
+    </nav>
+    
+    <main>
+      <router-outlet></router-outlet>
+    </main>
+  `
+})
+export class AppComponent {
+  userState = userState;
+  
+  constructor() {
+    initializeAuth();
+  }
+  
+  async logout() {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  }
+}
+```
+
+## Best Practices
+
+1. **Error Handling**: Always wrap async operations in try-catch blocks
+2. **Loading States**: Use the status signals to show loading indicators
+3. **Cleanup**: The library automatically handles cleanup when components are destroyed
+4. **Type Safety**: All functions are fully typed for better development experience
+5. **Reactive Updates**: Use the signal values directly in templates for automatic updates
+6. **Performance**: Functions are optimized and only create subscriptions when needed

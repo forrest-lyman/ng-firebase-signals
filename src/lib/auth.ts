@@ -1,297 +1,138 @@
 // fx/auth.ts
 import { signal, inject, DestroyRef } from '@angular/core';
-import { 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  updateProfile,
-  updatePassword,
-  deleteUser,
-  sendEmailVerification,
+  updateProfile as firebaseUpdateProfile,
+  updatePassword as firebaseUpdatePassword,
+  deleteUser as firebaseDeleteUser,
+  sendEmailVerification as firebaseSendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset as firebaseConfirmPasswordReset,
-  GoogleAuthProvider,
+  onAuthStateChanged,
   User,
-  Auth
+  Auth,
+  UserCredential
 } from 'firebase/auth';
 import { FIREBASE_AUTH } from './app';
 
-export type AuthStatus = 'idle' | 'loading' | 'success' | 'error';
-
 // User state signal
-export function createUserState() {
-  const user = signal<User | null>(null);
-  const loading = signal(true);
-  const error = signal<string | null>(null);
+export const userState = signal<{
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}>({
+  currentUser: null,
+  isAuthenticated: false,
+  isLoading: true
+});
 
+// Initialize auth state listener
+export function initializeAuth() {
+  const auth = inject(FIREBASE_AUTH);
   const destroyRef = inject(DestroyRef);
-  const auth = inject(FIREBASE_AUTH);
 
-  // Listen to auth state changes
-  const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-    if (currentUser) {
-      user.set(currentUser);
-    } else {
-      user.set(null);
-    }
-    loading.set(false);
-    error.set(null);
-  }, (authError) => {
-    error.set(authError.message);
-    loading.set(false);
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    userState.set({
+      currentUser: user,
+      isAuthenticated: !!user,
+      isLoading: false
+    });
   });
 
-  destroyRef.onDestroy(() => {
-    unsubscribe();
-  });
-
-  return { user, loading, error };
+  destroyRef.onDestroy(() => unsubscribe());
 }
 
-// Google sign in
-export function signInWithGoogle() {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Google Sign In
+export async function signInWithGoogle(): Promise<UserCredential> {
   const auth = inject(FIREBASE_AUTH);
-
-  const signIn = async () => {
-    status.set('loading');
-    error.set(null);
-
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { signIn, status, error };
+  const provider = new GoogleAuthProvider();
+  return signInWithPopup(auth, provider);
 }
 
-// Email/password sign in
-export function signInWithEmail(email: string, password: string) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Email/Password Sign In
+export async function signInWithEmail(email: string, password: string): Promise<UserCredential> {
   const auth = inject(FIREBASE_AUTH);
-
-  const signIn = async () => {
-    status.set('loading');
-    error.set(null);
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { signIn, status, error };
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
-// Create user with email/password
-export function createUser(email: string, password: string) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Create User Account
+export async function createUser(email: string, password: string, displayName?: string): Promise<UserCredential> {
   const auth = inject(FIREBASE_AUTH);
+  const result = await createUserWithEmailAndPassword(auth, email, password);
 
-  const create = async () => {
-    status.set('loading');
-    error.set(null);
+  if (displayName && result.user) {
+    await firebaseUpdateProfile(result.user, { displayName });
+  }
 
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { create, status, error };
+  return result;
 }
 
-// Sign out
-export function signOut() {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Sign Out
+export async function signOut(): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
-
-  const logout = async () => {
-    status.set('loading');
-    error.set(null);
-
-    try {
-      await firebaseSignOut(auth);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { logout, status, error };
+  return firebaseSignOut(auth);
 }
 
-// Update user profile
-export function updateUserProfile(updates: { displayName?: string; photoURL?: string }) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Update User Profile
+export async function updateUserProfile(displayName?: string, photoURL?: string): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
+  const user = auth.currentUser;
 
-  const update = async () => {
-    status.set('loading');
-    error.set(null);
+  if (!user) {
+    throw new Error('No user is currently signed in');
+  }
 
-    try {
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, updates);
-        status.set('success');
-      } else {
-        throw new Error('No user signed in');
-      }
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { update, status, error };
+  return firebaseUpdateProfile(user, { displayName, photoURL });
 }
 
-// Change password
-export function changePassword(newPassword: string) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Change Password
+export async function changePassword(newPassword: string): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
+  const user = auth.currentUser;
 
-  const change = async () => {
-    status.set('loading');
-    error.set(null);
+  if (!user) {
+    throw new Error('No user is currently signed in');
+  }
 
-    try {
-      if (auth.currentUser) {
-        await updatePassword(auth.currentUser, newPassword);
-        status.set('success');
-      } else {
-        throw new Error('No user signed in');
-      }
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { change, status, error };
+  return firebaseUpdatePassword(user, newPassword);
 }
 
-// Delete user account
-export function deleteUserAccount() {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Delete User Account
+export async function deleteUserAccount(): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
+  const user = auth.currentUser;
 
-  const deleteAccount = async () => {
-    status.set('loading');
-    error.set(null);
+  if (!user) {
+    throw new Error('No user is currently signed in');
+  }
 
-    try {
-      if (auth.currentUser) {
-        await deleteUser(auth.currentUser);
-        status.set('success');
-      } else {
-        throw new Error('No user signed in');
-      }
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { deleteAccount, status, error };
+  return firebaseDeleteUser(user);
 }
 
-// Send email verification
-export function sendEmailVerificationEmail() {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Send Email Verification
+export async function sendEmailVerification(): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
+  const user = auth.currentUser;
 
-  const send = async () => {
-    status.set('loading');
-    error.set(null);
+  if (!user) {
+    throw new Error('No user is currently signed in');
+  }
 
-    try {
-      if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser);
-        status.set('success');
-      } else {
-        throw new Error('No user signed in');
-      }
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { send, status, error };
+  return firebaseSendEmailVerification(user);
 }
 
-// Send password reset email
-export function sendPasswordResetEmail(email: string) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Send Password Reset Email
+export async function sendPasswordResetEmail(email: string): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
-
-  const send = async () => {
-    status.set('loading');
-    error.set(null);
-
-    try {
-      await firebaseSendPasswordResetEmail(auth, email);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { send, status, error };
+  return firebaseSendPasswordResetEmail(auth, email);
 }
 
-// Confirm password reset
-export function confirmPasswordReset(oobCode: string, newPassword: string) {
-  const status = signal<AuthStatus>('idle');
-  const error = signal<string | null>(null);
-
+// Confirm Password Reset
+export async function confirmPasswordReset(code: string, newPassword: string): Promise<void> {
   const auth = inject(FIREBASE_AUTH);
-
-  const confirm = async () => {
-    status.set('loading');
-    error.set(null);
-
-    try {
-      await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
-      status.set('success');
-    } catch (err: any) {
-      status.set('error');
-      error.set(err.message);
-    }
-  };
-
-  return { confirm, status, error };
+  return firebaseConfirmPasswordReset(auth, code, newPassword);
 }

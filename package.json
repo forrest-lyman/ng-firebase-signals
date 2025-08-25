@@ -1,6 +1,26 @@
 {
   "name": "ng-firebase-signals",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "A minimal Angular library that provides reactive Firebase utilities using Angular signals",
+  "homepage": "https://github.com/forrest-lyman/ng-firebase-signals",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/forrest-lyman/ng-firebase-signals.git"
+  },
+  "keywords": [
+    "angular",
+    "firebase",
+    "signals",
+    "reactive",
+    "typescript",
+    "authentication",
+    "firestore",
+    "storage",
+    "ai",
+    "google-generative-ai"
+  ],
+  "author": "Forrest Lyman",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -9,17 +29,18 @@
   "peerDependencies": {
     "@angular/common": "^16.0.0",
     "@angular/core": "^16.0.0",
-    "firebase": "^10.0.0",
-    "@google/generative-ai": "^0.20.0"
+    "@google/generative-ai": "^0.20.0",
+    "firebase": "^10.0.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "vitest": "^2.0.0",
     "@vitest/ui": "^2.0.0",
+    "jsdom": "^26.1.0",
+    "tsc-alias": "^1.8.0",
     "typescript": "^5.0.0",
-    "tsc-alias": "^1.8.0"
+    "vitest": "^2.0.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
@@ -33,7 +54,12 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "deploy": "npm run clean && npm run build:prod && npm publish --access public",
+    "deploy:patch": "npm version patch && npm run deploy",
+    "deploy:minor": "npm version minor && npm run deploy",
+    "deploy:major": "npm version major && npm run deploy",
+    "prepublishOnly": "npm run clean && npm run build:prod && npm run test:run"
   },
   "sideEffects": false
 }

@@ -1,413 +1,251 @@
 # Authentication
 
-The authentication module provides reactive user authentication state and authentication operations using Angular signals.
+The authentication module provides direct, simple functions for Firebase Authentication using Angular signals.
 
-## Overview
+## Quick Start
 
-Each authentication function is focused and does one specific thing, returning reactive signals for state management. This approach is more Angular-like and easier to compose.
+```typescript
+import { provideFirebase } from '@ng-firebase-signals/core';
+import { initializeAuth, signInWithGoogle, userState } from '@ng-firebase-signals/core';
 
-## Core Functions
+// In your app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideFirebase({
+      // your Firebase config
+    })
+  ]
+};
+
+// In your component
+export class AuthComponent {
+  userState = userState;
+  
+  constructor() {
+    // Initialize auth state listener
+    initializeAuth();
+  }
+  
+  async login() {
+    try {
+      await signInWithGoogle();
+      // User is now signed in
+    } catch (error) {
+      console.error('Sign in failed:', error);
+    }
+  }
+}
+```
+
+## Functions
 
 ### User State Management
 
-#### `createUserState()`
-
-Creates a reactive user authentication state that automatically updates when the user signs in or out.
-
+#### `userState`
+A signal containing the current user state:
 ```typescript
-import { createUserState } from 'ng-firebase-signals';
-
-@Component({...})
-export class AuthComponent {
-  authState = createUserState();
-  
-  // Access reactive state
-  user = this.authState.user;
-  loading = this.authState.loading;
-  error = this.authState.error;
-}
+export const userState = signal<{
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}>({
+  currentUser: null,
+  isAuthenticated: false,
+  isLoading: true
+});
 ```
 
-**Returns:**
-- `user` - Signal containing the current user or null
-- `loading` - Signal indicating if auth state is being determined
-- `error` - Signal containing any authentication errors
+#### `initializeAuth()`
+Initializes the authentication state listener. Call this once in your app to start listening for auth state changes.
 
-**Template Usage:**
-```html
-<div *ngIf="authState.user()">
-  <h2>Welcome, {{ authState.user()?.displayName }}</h2>
-</div>
+### Authentication Functions
 
-<div *ngIf="authState.loading()">
-  Loading...
-</div>
+#### `signInWithGoogle(): Promise<UserCredential>`
+Signs in with Google using popup authentication.
 
-<div *ngIf="authState.error()">
-  Error: {{ authState.error() }}
-</div>
-```
+#### `signInWithEmail(email: string, password: string): Promise<UserCredential>`
+Signs in with email and password.
 
-## Authentication Operations
+#### `createUser(email: string, password: string, displayName?: string): Promise<UserCredential>`
+Creates a new user account with email and password. Optionally sets a display name.
 
-### Sign In Functions
+#### `signOut(): Promise<void>`
+Signs out the current user.
 
-#### `signInWithGoogle()`
+### User Management
 
-Handles Google sign-in authentication.
-
-```typescript
-import { signInWithGoogle } from 'ng-firebase-signals';
-
-@Component({...})
-export class SignInComponent {
-  googleSignIn = signInWithGoogle();
-  
-  async handleGoogleSignIn() {
-    await this.googleSignIn.signIn();
-  }
-}
-```
-
-**Returns:**
-- `signIn()` - Function to trigger Google sign-in
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-**Template Usage:**
-```html
-<button 
-  (click)="handleGoogleSignIn()"
-  [disabled]="googleSignIn.status() === 'loading'">
-  {{ googleSignIn.status() === 'loading' ? 'Signing In...' : 'Sign In with Google' }}
-</button>
-
-<div *ngIf="googleSignIn.error()">
-  Error: {{ googleSignIn.error() }}
-</div>
-```
-
-#### `signInWithEmail(email: string, password: string)`
-
-Handles email/password sign-in authentication.
-
-```typescript
-import { signInWithEmail } from 'ng-firebase-signals';
-
-@Component({...})
-export class SignInComponent {
-  emailSignIn = signInWithEmail('user@example.com', 'password123');
-  
-  async handleEmailSignIn() {
-    await this.emailSignIn.signIn();
-  }
-}
-```
-
-**Returns:**
-- `signIn()` - Function to trigger email sign-in
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-### User Creation
-
-#### `createUser(email: string, password: string)`
-
-Creates a new user account with email and password.
-
-```typescript
-import { createUser } from 'ng-firebase-signals';
-
-@Component({...})
-export class SignUpComponent {
-  userCreation = createUser('newuser@example.com', 'password123');
-  
-  async handleSignUp() {
-    await this.userCreation.create();
-  }
-}
-```
-
-**Returns:**
-- `create()` - Function to create the user account
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-### Sign Out
-
-#### `signOut()`
-
-Handles user sign-out.
-
-```typescript
-import { signOut } from 'ng-firebase-signals';
-
-@Component({...})
-export class UserProfileComponent {
-  signOutAction = signOut();
-  
-  async handleSignOut() {
-    await this.signOutAction.logout();
-  }
-}
-```
-
-**Returns:**
-- `logout()` - Function to sign out the user
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-## User Management
-
-### Profile Updates
-
-#### `updateUserProfile(updates: { displayName?: string; photoURL?: string })`
-
+#### `updateUserProfile(displayName?: string, photoURL?: string): Promise<void>`
 Updates the current user's profile information.
 
-```typescript
-import { updateUserProfile } from 'ng-firebase-signals';
-
-@Component({...})
-export class ProfileComponent {
-  profileUpdate = updateUserProfile({
-    displayName: 'John Doe',
-    photoURL: 'https://example.com/photo.jpg'
-  });
-  
-  async handleProfileUpdate() {
-    await this.profileUpdate.update();
-  }
-}
-```
-
-**Returns:**
-- `update()` - Function to update the profile
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-### Password Management
-
-#### `changePassword(newPassword: string)`
-
+#### `changePassword(newPassword: string): Promise<void>`
 Changes the current user's password.
 
-```typescript
-import { changePassword } from 'ng-firebase-signals';
+#### `deleteUserAccount(): Promise<void>`
+Deletes the current user's account.
 
-@Component({...})
-export class SecurityComponent {
-  passwordChange = changePassword('newSecurePassword123');
-  
-  async handlePasswordChange() {
-    await this.passwordChange.change();
-  }
-}
-```
+### Email Operations
 
-**Returns:**
-- `change()` - Function to change the password
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-### Account Deletion
-
-#### `deleteUserAccount()`
-
-Deletes the current user account.
-
-```typescript
-import { deleteUserAccount } from 'ng-firebase-signals';
-
-@Component({...})
-export class AccountComponent {
-  accountDeletion = deleteUserAccount();
-  
-  async handleAccountDeletion() {
-    await this.accountDeletion.deleteAccount();
-  }
-}
-```
-
-**Returns:**
-- `deleteAccount()` - Function to delete the account
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-## Email Operations
-
-### Email Verification
-
-#### `sendEmailVerificationEmail()`
-
+#### `sendEmailVerification(): Promise<void>`
 Sends an email verification to the current user.
 
-```typescript
-import { sendEmailVerificationEmail } from 'ng-firebase-signals';
-
-@Component({...})
-export class VerificationComponent {
-  emailVerification = sendEmailVerificationEmail();
-  
-  async handleEmailVerification() {
-    await this.emailVerification.send();
-  }
-}
-```
-
-**Returns:**
-- `send()` - Function to send verification email
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
-
-### Password Reset
-
-#### `sendPasswordResetEmail(email: string)`
-
+#### `sendPasswordResetEmail(email: string): Promise<void>`
 Sends a password reset email to the specified email address.
 
-```typescript
-import { sendPasswordResetEmail } from 'ng-firebase-signals';
+#### `confirmPasswordReset(code: string, newPassword: string): Promise<void>`
+Confirms a password reset using the code from the reset email.
 
-@Component({...})
+## Usage Examples
+
+### Basic Authentication Flow
+
+```typescript
+export class LoginComponent {
+  userState = userState;
+  
+  constructor() {
+    initializeAuth();
+  }
+  
+  async loginWithGoogle() {
+    try {
+      await signInWithGoogle();
+      console.log('Successfully signed in!');
+    } catch (error) {
+      console.error('Sign in failed:', error);
+    }
+  }
+  
+  async loginWithEmail(email: string, password: string) {
+    try {
+      await signInWithEmail(email, password);
+      console.log('Successfully signed in!');
+    } catch (error) {
+      console.error('Sign in failed:', error);
+    }
+  }
+  
+  async logout() {
+    try {
+      await signOut();
+      console.log('Successfully signed out!');
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  }
+}
+```
+
+### User Profile Management
+
+```typescript
+export class ProfileComponent {
+  userState = userState;
+  
+  async updateProfile(displayName: string, photoURL?: string) {
+    try {
+      await updateUserProfile(displayName, photoURL);
+      console.log('Profile updated successfully!');
+    } catch (error) {
+      console.error('Profile update failed:', error);
+    }
+  }
+  
+  async changePassword(newPassword: string) {
+    try {
+      await changePassword(newPassword);
+      console.log('Password changed successfully!');
+    } catch (error) {
+      console.error('Password change failed:', error);
+    }
+  }
+}
+```
+
+### Account Management
+
+```typescript
+export class AccountComponent {
+  async deleteAccount() {
+    try {
+      await deleteUserAccount();
+      console.log('Account deleted successfully!');
+    } catch (error) {
+      console.error('Account deletion failed:', error);
+    }
+  }
+  
+  async sendVerificationEmail() {
+    try {
+      await sendEmailVerification();
+      console.log('Verification email sent!');
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+    }
+  }
+}
+```
+
+### Password Reset Flow
+
+```typescript
 export class PasswordResetComponent {
-  passwordReset = sendPasswordResetEmail('user@example.com');
+  async sendResetEmail(email: string) {
+    try {
+      await sendPasswordResetEmail(email);
+      console.log('Password reset email sent!');
+    } catch (error) {
+      console.error('Failed to send reset email:', error);
+    }
+  }
   
-  async handlePasswordReset() {
-    await this.passwordReset.send();
+  async confirmReset(code: string, newPassword: string) {
+    try {
+      await confirmPasswordReset(code, newPassword);
+      console.log('Password reset successful!');
+    } catch (error) {
+      console.error('Password reset failed:', error);
+    }
   }
 }
 ```
 
-**Returns:**
-- `send()` - Function to send password reset email
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
+## Error Handling
 
-#### `confirmPasswordReset(oobCode: string, newPassword: string)`
-
-Confirms a password reset with the provided code and new password.
+All functions throw errors when they fail. Handle errors using try-catch blocks:
 
 ```typescript
-import { confirmPasswordReset } from 'ng-firebase-signals';
-
-@Component({...})
-export class PasswordResetConfirmComponent {
-  passwordResetConfirm = confirmPasswordReset('reset-code-123', 'newPassword123');
-  
-  async handlePasswordResetConfirm() {
-    await this.passwordResetConfirm.confirm();
+try {
+  await signInWithGoogle();
+} catch (error: any) {
+  if (error.code === 'auth/popup-closed-by-user') {
+    console.log('User closed the popup');
+  } else if (error.code === 'auth/popup-blocked') {
+    console.log('Popup was blocked by browser');
+  } else {
+    console.error('Authentication error:', error.message);
   }
 }
 ```
 
-**Returns:**
-- `confirm()` - Function to confirm password reset
-- `status` - Signal with current operation status
-- `error` - Signal containing any errors
+## State Management
 
-## Status Types
-
-All authentication functions return a consistent status pattern:
+The `userState` signal automatically updates when authentication state changes:
 
 ```typescript
-export type AuthStatus = 'idle' | 'loading' | 'success' | 'error';
-```
-
-- `idle` - Operation hasn't started
-- `loading` - Operation in progress
-- `success` - Operation completed successfully
-- `error` - Operation failed with an error
-
-## Complete Example
-
-```typescript
-import { Component, inject } from '@angular/core';
-import { 
-  createUserState, 
-  signInWithGoogle, 
-  signOut,
-  updateUserProfile 
-} from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-auth',
-  template: `
-    <div *ngIf="authState.user(); else signInForm">
-      <h2>Welcome, {{ authState.user()?.displayName }}</h2>
-      
-      <div *ngIf="profileUpdate.status() === 'success'">
-        Profile updated successfully!
-      </div>
-      
-      <button (click)="updateProfile()">Update Profile</button>
-      <button (click)="handleSignOut()">Sign Out</button>
-    </div>
-    
-    <ng-template #signInForm>
-      <button 
-        (click)="handleGoogleSignIn()"
-        [disabled]="googleSignIn.status() === 'loading'">
-        {{ googleSignIn.status() === 'loading' ? 'Signing In...' : 'Sign In with Google' }}
-      </button>
-      
-      <div *ngIf="googleSignIn.error()">
-        Error: {{ googleSignIn.error() }}
-      </div>
-    </ng-template>
-  `
-})
-export class AuthComponent {
-  // Auth state
-  authState = createUserState();
-  
-  // Auth operations
-  googleSignIn = signInWithGoogle();
-  signOutAction = signOut();
-  profileUpdate = updateUserProfile({ displayName: 'New Name' });
-  
-  async handleGoogleSignIn() {
-    await this.googleSignIn.signIn();
-  }
-  
-  async handleSignOut() {
-    await this.signOutAction.logout();
-  }
-  
-  async updateProfile() {
-    await this.profileUpdate.update();
-  }
-}
+// In your template
+<div *ngIf="userState().isLoading">Loading...</div>
+<div *ngIf="userState().isAuthenticated">
+  Welcome, {{ userState().currentUser?.displayName }}!
+</div>
+<div *ngIf="!userState().isAuthenticated && !userState().isLoading">
+  Please sign in
+</div>
 ```
 
 ## Best Practices
 
-1. **Compose Functions**: Mix and match authentication functions as needed
-2. **Handle Errors**: Always check error signals in your templates
-3. **Loading States**: Use status signals to show loading indicators
-4. **Cleanup**: Functions automatically clean up subscriptions when components are destroyed
-5. **Type Safety**: All functions are fully typed for better development experience
-
-## Error Handling
-
-All authentication functions provide error signals that you can use to display user-friendly error messages:
-
-```typescript
-// Check for errors
-if (signIn.error()) {
-  console.error('Sign in failed:', signIn.error());
-}
-
-// Display in template
-<div *ngIf="signIn.error()" class="error-message">
-  {{ signIn.error() }}
-</div>
-```
-
-## Security Considerations
-
-- Always validate user input before passing to authentication functions
-- Handle authentication errors gracefully
-- Implement proper security rules in Firebase
-- Use HTTPS in production
-- Consider implementing rate limiting for authentication attempts
+1. **Call `initializeAuth()` once** in your app initialization
+2. **Handle errors appropriately** using try-catch blocks
+3. **Check user state** before calling user-specific functions
+4. **Use the `userState` signal** for reactive UI updates
+5. **Clean up subscriptions** (handled automatically by `DestroyRef`)
