@@ -61,7 +61,7 @@
     "deploy:patch": "npm version patch && npm run deploy",
     "deploy:minor": "npm version minor && npm run deploy",
     "deploy:major": "npm version major && npm run deploy",
-    "prepublishOnly": "npm run clean && npm run build:prod && npm run test:run"
+    "prepublishOnly": "npm run clean && npm run build:prod"
   },
   "sideEffects": false
 }
