@@ -21,7 +21,7 @@ export interface StorageFile {
   name: string;
   fullPath: string;
   size: number;
-  contentType: string;
+  contentType?: string;
   timeCreated?: Date;
   updated?: Date;
   downloadURL: string;
@@ -73,7 +73,7 @@ export function uploadFile(path: string) {
               name: metadata.name,
               fullPath: metadata.fullPath,
               size: metadata.size,
-              contentType: metadata.contentType,
+              contentType: metadata.contentType || undefined,
               timeCreated: metadata.timeCreated ? new Date(metadata.timeCreated) : undefined,
               updated: metadata.updated ? new Date(metadata.updated) : undefined,
               downloadURL
@@ -121,15 +121,15 @@ export function downloadFile(path: string) {
       // Get file metadata
       const metadata = await getMetadata(storageRef);
       
-      const fileData: StorageFile = {
-        name: metadata.name,
-        fullPath: metadata.fullPath,
-        size: metadata.size,
-        contentType: metadata.contentType,
-        timeCreated: metadata.timeCreated ? new Date(metadata.timeCreated) : undefined,
-        updated: metadata.updated ? new Date(metadata.updated) : undefined,
-        downloadURL
-      };
+                  const fileData: StorageFile = {
+              name: metadata.name,
+              fullPath: metadata.fullPath,
+              size: metadata.size,
+              contentType: metadata.contentType || undefined,
+              timeCreated: metadata.timeCreated ? new Date(metadata.timeCreated) : undefined,
+              updated: metadata.updated ? new Date(metadata.updated) : undefined,
+              downloadURL
+            };
 
       data.set({ url: downloadURL, file: fileData });
       status.set('success');
@@ -175,7 +175,7 @@ export function listFiles(path: string, options: { destroyRef?: DestroyRef } = {
             name: metadata.name,
             fullPath: metadata.fullPath,
             size: metadata.size,
-            contentType: metadata.contentType,
+            contentType: metadata.contentType || undefined,
             timeCreated: metadata.timeCreated ? new Date(metadata.timeCreated) : undefined,
             updated: metadata.updated ? new Date(metadata.updated) : undefined,
             downloadURL
