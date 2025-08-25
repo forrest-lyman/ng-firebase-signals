@@ -27,8 +27,8 @@
     "dist"
   ],
   "peerDependencies": {
-    "@angular/common": ">=16.0.0",
-    "@angular/core": ">=16.0.0",
+    "@angular/common": ">=16.0.0 <21.0.0",
+    "@angular/core": ">=16.0.0 <21.0.0",
     "firebase": "^11.0.0"
   },
   "dependencies": {

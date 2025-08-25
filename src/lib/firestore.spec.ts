@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
+import { runInInjectionContext } from '@angular/core';
 import { 
   docData, 
   collectionData, 
@@ -47,6 +48,8 @@ const mockFirebaseApp = {};
 const mockFirestore = {};
 
 describe('Firestore Functions', () => {
+  let injector: any;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -55,15 +58,21 @@ describe('Firestore Functions', () => {
       ]
     });
     
+    injector = TestBed.inject;
     vi.clearAllMocks();
   });
+
+  // Helper function to run functions in injection context
+  const runInContext = <T>(fn: () => T): T => {
+    return runInInjectionContext(injector, fn);
+  };
 
   describe('docData', () => {
     it('should create document data signal', () => {
       const mockDocRef = { id: 'doc1', path: 'users/doc1' };
       (doc as any).mockReturnValue(mockDocRef);
 
-      const result = docData('users', 'doc1');
+      const result = runInContext(() => docData('users', 'doc1'));
 
       expect(doc).toHaveBeenCalledWith(mockFirestore, 'users', 'doc1');
       expect(result.data).toBeDefined();
@@ -83,7 +92,7 @@ describe('Firestore Functions', () => {
         return () => {};
       });
 
-      const result = docData('users', 'doc1');
+      const result = runInContext(() => docData('users', 'doc1'));
       await result.load();
 
       expect(onSnapshot).toHaveBeenCalledWith(mockDocRef, expect.any(Function), expect.any(Function));
@@ -99,7 +108,7 @@ describe('Firestore Functions', () => {
         return () => {};
       });
 
-      const result = docData('users', 'doc1');
+      const result = runInContext(() => docData('users', 'doc1'));
       await result.load();
 
       expect(result.data()).toBeNull();
@@ -111,7 +120,7 @@ describe('Firestore Functions', () => {
       const mockCollectionRef = { id: 'users', path: 'users' };
       (collection as any).mockReturnValue(mockCollectionRef);
 
-      const result = collectionData('users');
+      const result = runInContext(() => collectionData('users'));
 
       expect(collection).toHaveBeenCalledWith(mockFirestore, 'users');
       expect(result.data).toBeDefined();
@@ -134,7 +143,7 @@ describe('Firestore Functions', () => {
         return () => {};
       });
 
-      const result = collectionData('users');
+      const result = runInContext(() => collectionData('users'));
       await result.load();
 
       expect(onSnapshot).toHaveBeenCalledWith(mockCollectionRef, expect.any(Function), expect.any(Function));
@@ -149,7 +158,7 @@ describe('Firestore Functions', () => {
       (collection as any).mockReturnValue(mockCollectionRef);
       (query as any).mockReturnValue(mockQuery);
 
-      const result = createQuery('users');
+      const result = runInContext(() => createQuery('users'));
 
       expect(collection).toHaveBeenCalledWith(mockFirestore, 'users');
       expect(query).toHaveBeenCalledWith(mockCollectionRef);
@@ -234,7 +243,7 @@ describe('Firestore Functions', () => {
       const mockDocRef = { id: 'doc1', path: 'users/doc1' };
       (doc as any).mockReturnValue(mockDocRef);
 
-      const result = useDocRef('users', 'doc1');
+      const result = runInContext(() => useDocRef('users', 'doc1'));
 
       expect(doc).toHaveBeenCalledWith(mockFirestore, 'users', 'doc1');
       expect(result).toBe(mockDocRef);
@@ -246,7 +255,7 @@ describe('Firestore Functions', () => {
       const mockCollectionRef = { id: 'users', path: 'users' };
       (collection as any).mockReturnValue(mockCollectionRef);
 
-      const result = useCollectionRef('users');
+      const result = runInContext(() => useCollectionRef('users'));
 
       expect(collection).toHaveBeenCalledWith(mockFirestore, 'users');
       expect(result).toBe(mockCollectionRef);
@@ -265,10 +274,10 @@ describe('Firestore Functions', () => {
       (orderBy as any).mockReturnValue(mockOrderQuery);
       (limit as any).mockReturnValue(mockLimitQuery);
 
-      const result = useQuery('users', [
+      const result = runInContext(() => useQuery('users', [
         ['age', '>', 25],
         ['status', '==', 'active']
-      ], 'name', 'asc', 10);
+      ], 'name', 'asc', 10));
 
       expect(collection).toHaveBeenCalledWith(mockFirestore, 'users');
       expect(where).toHaveBeenCalledWith('age', '>', 25);
@@ -284,7 +293,7 @@ describe('Firestore Functions', () => {
       (collection as any).mockReturnValue(mockCollectionRef);
       (query as any).mockReturnValue(mockQuery);
 
-      const result = useQuery('users');
+      const result = runInContext(() => useQuery('users'));
 
       expect(collection).toHaveBeenCalledWith(mockFirestore, 'users');
       expect(query).toHaveBeenCalledWith(mockCollectionRef);

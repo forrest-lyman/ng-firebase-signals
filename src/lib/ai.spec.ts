@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
+import { runInInjectionContext } from '@angular/core';
 import { 
   generateText, 
   generateTextStream, 
@@ -34,6 +35,8 @@ vi.mock('firebase/ai', () => ({
 const mockFirebaseApp = {};
 
 describe('AI Functions', () => {
+  let injector: any;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -41,8 +44,14 @@ describe('AI Functions', () => {
       ]
     });
     
+    injector = TestBed.inject;
     vi.clearAllMocks();
   });
+
+  // Helper function to run functions in injection context
+  const runInContext = <T>(fn: () => T): T => {
+    return runInInjectionContext(injector, fn);
+  };
 
   describe('generateText', () => {
     it('should generate text successfully', async () => {
@@ -70,7 +79,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContent as any).mockResolvedValue(mockResponse);
 
-      const result = await generateText('Test prompt');
+      const result = await runInContext(() => generateText('Test prompt'));
 
       expect(getAI).toHaveBeenCalledWith(mockFirebaseApp, { backend: expect.any(VertexAIBackend) });
       expect(getGenerativeModel).toHaveBeenCalledWith(mockAI, {
@@ -97,7 +106,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContent as any).mockRejectedValue(new Error('Generation failed'));
 
-      await expect(generateText('Test prompt')).rejects.toThrow('Text generation failed: Generation failed');
+      await expect(runInContext(() => generateText('Test prompt'))).rejects.toThrow('Text generation failed: Generation failed');
     });
   });
 
@@ -139,7 +148,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContent as any).mockResolvedValue(mockResponse);
 
-      const result = await generateData(mockSchema, 'Generate user data');
+      const result = await runInContext(() => generateData(mockSchema, 'Generate user data'));
 
       expect(getGenerativeModel).toHaveBeenCalledWith(mockAI, {
         model: 'gemini-2.5-flash',
@@ -161,13 +170,15 @@ describe('AI Functions', () => {
       const mockModel = {
         generateContent: vi.fn()
       };
-      const mockSchema = Schema.object({});
+      const mockSchema = Schema.object({
+        properties: {}
+      });
 
       (getAI as any).mockReturnValue(mockAI);
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContent as any).mockRejectedValue(new Error('Data generation failed'));
 
-      await expect(generateData(mockSchema, 'Generate data')).rejects.toThrow('Data generation failed: Data generation failed');
+      await expect(runInContext(() => generateData(mockSchema, 'Generate data'))).rejects.toThrow('Data generation failed: Data generation failed');
     });
   });
 
@@ -189,7 +200,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContentStream as any).mockResolvedValue(mockStream);
 
-      const stream = generateTextStream('Test prompt');
+      const stream = runInContext(() => generateTextStream('Test prompt'));
       const chunks = [];
       
       for await (const chunk of stream) {
@@ -215,7 +226,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.generateContentStream as any).mockRejectedValue(new Error('Streaming failed'));
 
-      const stream = generateTextStream('Test prompt');
+      const stream = runInContext(() => generateTextStream('Test prompt'));
       
       await expect(async () => {
         for await (const chunk of stream) {
@@ -239,7 +250,7 @@ describe('AI Functions', () => {
       (getGenerativeModel as any).mockReturnValue(mockModel);
       (mockModel.startChat as any).mockReturnValue(mockChat);
 
-      const chat = createChat('You are a helpful assistant');
+      const chat = runInContext(() => createChat('You are a helpful assistant'));
 
       expect(getGenerativeModel).toHaveBeenCalledWith(mockAI, {
         model: 'gemini-2.5-flash',
@@ -289,7 +300,7 @@ describe('AI Functions', () => {
       (mockModel.startChat as any).mockReturnValue(mockChat);
       (mockChat.sendMessage as any).mockResolvedValue(mockResponse);
 
-      const chat = createChat('You are a helpful assistant');
+      const chat = runInContext(() => createChat('You are a helpful assistant'));
       const result = await chat.sendMessage('Hello');
 
       expect(mockChat.sendMessage).toHaveBeenCalledWith('Hello');
@@ -325,7 +336,7 @@ describe('AI Functions', () => {
         .mockResolvedValueOnce(mockResponse2);
 
       const prompts = ['Prompt 1', 'Prompt 2'];
-      const results = await generateBatch(prompts);
+      const results = await runInContext(() => generateBatch(prompts));
 
       expect(mockModel.generateContent).toHaveBeenCalledTimes(2);
       expect(results).toHaveLength(2);
@@ -352,7 +363,7 @@ describe('AI Functions', () => {
         .mockRejectedValueOnce(new Error('Generation failed'));
 
       const prompts = ['Prompt 1', 'Prompt 2'];
-      const results = await generateBatch(prompts);
+      const results = await runInContext(() => generateBatch(prompts));
 
       expect(results).toHaveLength(2);
       expect(results[0].text).toBe('Response 1');
@@ -362,7 +373,7 @@ describe('AI Functions', () => {
 
   describe('generateEmbeddings', () => {
     it('should throw error for unsupported embeddings', async () => {
-      await expect(generateEmbeddings(['text1', 'text2'])).rejects.toThrow(
+      await expect(runInContext(() => generateEmbeddings(['text1', 'text2']))).rejects.toThrow(
         'Embeddings are not yet supported in Firebase AI. Please use the text generation functions instead.'
       );
     });
