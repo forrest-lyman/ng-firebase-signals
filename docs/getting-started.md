@@ -1,325 +1,267 @@
 # Getting Started
 
-Complete setup guide and configuration options for ng-firebase-signals.
+This guide will help you set up and configure ng-firebase-signals in your Angular application.
 
-## 📦 Installation
+## Prerequisites
+
+- Angular 16+ application
+- Firebase project with Auth, Firestore, and/or Storage enabled
+- Google AI API key (optional, for AI features)
+
+## Installation
+
+Install the library using npm:
 
 ```bash
-npm install ng-firebase-signals
+npm install @ng-firebase-signals/core
 ```
 
-## 🔧 Setup
+## Configuration
 
-### 1. Firebase Configuration
+### 1. Firebase Setup
 
-First, you'll need a Firebase project. If you don't have one:
+First, create a Firebase project and get your configuration:
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Create a new project or select an existing one
-3. Add a web app to your project
-4. Copy the configuration object
+3. Go to Project Settings > General
+4. Scroll down to "Your apps" and click "Add app" > Web
+5. Copy the configuration object
 
-### 2. Configure Your App
+### 2. Google AI Setup (Optional)
+
+For AI features, you'll need a Google AI API key:
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Copy the API key
+
+### 3. Angular Configuration
+
+Update your `app.config.ts` to include the Firebase provider:
 
 ```typescript
-// app.config.ts
-import { provideFirebase } from 'ng-firebase-signals';
+import { ApplicationConfig } from '@angular/core';
+import { provideFirebase } from '@ng-firebase-signals/core';
 
-const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
-};
-
-export const appConfig = {
+export const appConfig: ApplicationConfig = {
   providers: [
-    provideFirebase(firebaseConfig)
+    provideFirebase({
+      // Firebase config
+      apiKey: 'your-api-key',
+      authDomain: 'your-project.firebaseapp.com',
+      projectId: 'your-project-id',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: 'your-app-id',
+      
+      // Google AI config (optional)
+      googleAI: {
+        apiKey: 'your-google-ai-key'
+      }
+    })
   ]
 };
 ```
 
-### 3. Bootstrap Your App
+### 4. Environment Configuration
 
-```typescript
-// main.ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
-
-bootstrapApplication(AppComponent, appConfig);
-```
-
-## 🌟 Google AI Integration (Optional)
-
-To use the AI utilities, add Google AI configuration:
-
-```typescript
-const firebaseConfig = {
-  // ... standard Firebase config
-  googleAI: {
-    apiKey: "your-google-ai-api-key",
-    defaultModel: "gemini-pro" // optional, defaults to gemini-pro
-  }
-};
-```
-
-To get a Google AI API key:
-
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Add it to your Firebase configuration
-
-## 🔐 Enable Firebase Services
-
-### Authentication
-
-1. In Firebase Console, go to **Authentication** → **Sign-in method**
-2. Enable the providers you want to use (Google, Email/Password, etc.)
-3. For Google Auth, add your authorized domains
-
-### Firestore
-
-1. Go to **Firestore Database** → **Create database**
-2. Choose your security rules (start in test mode for development)
-3. Select a location for your database
-
-### Storage
-
-1. Go to **Storage** → **Get started**
-2. Choose your security rules (start in test mode for development)
-3. Select a location for your storage
-
-## 🚀 First Steps
-
-### 1. Basic Component Setup
-
-```typescript
-// app.component.ts
-import { Component } from '@angular/core';
-import { useAuthState } from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-root',
-  template: `
-    <div>
-      <div *ngIf="authState.loading()">Loading...</div>
-      
-      <div *ngIf="authState.user()">
-        <h2>Welcome, {{ authState.user()?.displayName }}</h2>
-        <p>You are logged in!</p>
-      </div>
-      
-      <div *ngIf="!authState.user()">
-        <p>Please sign in to continue</p>
-      </div>
-    </div>
-  `
-})
-export class AppComponent {
-  authState = useAuthState();
-}
-```
-
-### 2. Add Authentication
-
-```typescript
-import { useSignIn, useSignOut } from 'ng-firebase-signals';
-
-export class AppComponent {
-  authState = useAuthState();
-  signIn = useSignIn();
-  signOut = useSignOut();
-  
-  async login() {
-    await this.signIn.google();
-  }
-  
-  async logout() {
-    await this.signOut();
-  }
-}
-```
-
-### 3. Add Firestore Data
-
-```typescript
-import { docData, useDocRef } from 'ng-firebase-signals';
-
-export class AppComponent {
-  // ... existing code ...
-  
-  userProfile = docData(useDocRef('users/123'));
-  
-  // In template:
-  // <div *ngIf="userProfile.data()">
-  //   <h3>Profile: {{ userProfile.data()?.name }}</h3>
-  // </div>
-}
-```
-
-## ⚙️ Configuration Options
-
-### Firebase App Configuration
-
-```typescript
-const firebaseConfig = {
-  // Required fields
-  apiKey: string,
-  authDomain: string,
-  projectId: string,
-  storageBucket: string,
-  messagingSenderId: string,
-  appId: string,
-  
-  // Optional fields
-  measurementId?: string,
-  databaseURL?: string,
-  
-  // Google AI configuration
-  googleAI?: {
-    apiKey: string,
-    defaultModel?: string
-  }
-};
-```
-
-### Environment-Specific Configuration
+For better security, use environment variables:
 
 ```typescript
 // environment.ts
 export const environment = {
   production: false,
   firebase: {
-    apiKey: "dev-api-key",
-    authDomain: "dev-project.firebaseapp.com",
-    // ... other config
-  }
-};
-
-// environment.prod.ts
-export const environment = {
-  production: true,
-  firebase: {
-    apiKey: "prod-api-key",
-    authDomain: "prod-project.firebaseapp.com",
-    // ... other config
+    apiKey: 'your-api-key',
+    authDomain: 'your-project.firebaseapp.com',
+    projectId: 'your-project-id',
+    storageBucket: 'your-project.appspot.com',
+    messagingSenderId: '123456789',
+    appId: 'your-app-id'
+  },
+  googleAI: {
+    apiKey: 'your-google-ai-key'
   }
 };
 
 // app.config.ts
 import { environment } from '../environments/environment';
 
-export const appConfig = {
+export const appConfig: ApplicationConfig = {
   providers: [
-    provideFirebase(environment.firebase)
+    provideFirebase({
+      ...environment.firebase,
+      googleAI: environment.googleAI
+    })
   ]
 };
 ```
 
-## 🔒 Security Rules
+## Basic Usage
 
-### Firestore Security Rules
+### Authentication
 
-```javascript
-// firestore.rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow authenticated users to read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
+```typescript
+import { Component } from '@angular/core';
+import { initializeAuth, signInWithGoogle, userState } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div *ngIf="userState().isAuthenticated">
+      Welcome, {{ userState().currentUser?.displayName }}!
+      <button (click)="logout()">Sign Out</button>
+    </div>
     
-    // Allow public read access to public collections
-    match /public/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    <div *ngIf="!userState().isAuthenticated">
+      <button (click)="login()">Sign In with Google</button>
+    </div>
+  `
+})
+export class AppComponent {
+  userState = userState;
+  
+  constructor() {
+    initializeAuth();
+  }
+  
+  async login() {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error('Sign in failed:', error);
+    }
+  }
+  
+  async logout() {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
     }
   }
 }
 ```
 
-### Storage Security Rules
+### Firestore
 
-```javascript
-// storage.rules
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Allow authenticated users to upload files
-    match /uploads/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow public read access to public files
-    match /public/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+```typescript
+import { Component, inject, DestroyRef } from '@angular/core';
+import { docData, collectionData } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-users',
+  template: `
+    <div *ngFor="let user of users()">
+      {{ user.name }} - {{ user.email }}
+    </div>
+  `
+})
+export class UsersComponent {
+  destroyRef = inject(DestroyRef);
+  
+  users = collectionData('users', { destroyRef: this.destroyRef });
+  
+  userProfile = docData('users/123', { destroyRef: this.destroyRef });
+}
+```
+
+### Storage
+
+```typescript
+import { Component } from '@angular/core';
+import { uploadFile } from '@ng-firebase-signals/core';
+
+@Component({
+  selector: 'app-upload',
+  template: `
+    <input type="file" (change)="onFileSelected($event)">
+    <div *ngIf="uploadProgress() > 0">
+      Upload Progress: {{ uploadProgress() }}%
+    </div>
+  `
+})
+export class UploadComponent {
+  uploadData = uploadFile('uploads/');
+  
+  get uploadProgress() { return this.uploadData.progress; }
+  
+  onFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.uploadData.upload(file);
     }
   }
 }
 ```
 
-## 🧪 Testing Your Setup
+### AI
 
-### 1. Check Console for Errors
+```typescript
+import { Component } from '@angular/core';
+import { generateText } from '@ng-firebase-signals/core';
 
-Open your browser's developer console and look for any Firebase-related errors.
+@Component({
+  selector: 'app-ai',
+  template: `
+    <button (click)="generateStory()">Generate Story</button>
+    <div *ngIf="story">{{ story }}</div>
+  `
+})
+export class AIComponent {
+  story = '';
+  
+  async generateStory() {
+    try {
+      const response = await generateText('Write a short story about friendship');
+      this.story = response.text;
+    } catch (error) {
+      console.error('Generation failed:', error);
+    }
+  }
+}
+```
 
-### 2. Verify Authentication
+## Next Steps
 
-Try signing in with Google or email/password to verify authentication is working.
+- Read the [Firebase App Configuration](firebase-app.md) guide for detailed setup
+- Explore [Authentication](authentication.md) for user management
+- Learn about [Firestore](firestore.md) for database operations
+- Check out [Storage](storage.md) for file management
+- Try [AI](ai.md) features for text generation
+- See [Examples](examples.md) for complete integration patterns
+- Reference the [API Reference](api-reference.md) for all available functions
 
-### 3. Test Firestore
+## Troubleshooting
 
-Create a test document in Firestore and try to read it in your app.
+### Common Issues
 
-### 4. Test Storage
+**"Google AI not configured" error**
+- Make sure you've provided the `googleAI.apiKey` in your Firebase configuration
+- Verify your API key is valid and has the necessary permissions
 
-Try uploading a small test file to verify storage is working.
+**"Firebase not configured" error**
+- Ensure you've called `provideFirebase()` in your app configuration
+- Check that your Firebase config object is correct
 
-## 🚨 Common Issues
+**Authentication not working**
+- Verify your Firebase project has Authentication enabled
+- Check that you've configured the correct sign-in providers
 
-### Firebase Not Initialized
+**Firestore permission errors**
+- Set up proper Firestore security rules
+- Ensure your authentication is working correctly
 
-**Error**: "Firebase: Error (auth/invalid-api-key)."
+**Storage upload failures**
+- Check Firebase Storage security rules
+- Verify your Firebase project has Storage enabled
 
-**Solution**: Check that your Firebase configuration is correct and the API key is valid.
+## Support
 
-### CORS Issues
+If you encounter issues:
 
-**Error**: "Cross-origin request blocked."
-
-**Solution**: Add your domain to Firebase Console → Authentication → Settings → Authorized domains.
-
-### Permission Denied
-
-**Error**: "Permission denied" when reading/writing data.
-
-**Solution**: Check your Firestore and Storage security rules.
-
-### Google AI Not Working
-
-**Error**: "Google AI not configured."
-
-**Solution**: Make sure you've added the `googleAI.apiKey` to your Firebase configuration.
-
-## 📱 Next Steps
-
-Now that you have the basics set up, explore the other documentation sections:
-
-- [Firebase App](firebase-app.md) - Advanced configuration and lifecycle management
-- [Authentication](authentication.md) - User management and auth state
-- [Firestore](firestore.md) - Database operations and real-time data
-- [Storage](storage.md) - File management and uploads
-- [AI](ai.md) - Google AI integration and text generation
-
-## 🆘 Need Help?
-
-- Check the [API Reference](api-reference.md) for detailed function documentation
-- Look at [Examples](examples.md) for complete integration patterns
-- Open an issue on GitHub if you encounter bugs
-- Check the [Firebase documentation](https://firebase.google.com/docs) for general Firebase help
+1. Check the [API Reference](api-reference.md) for function documentation
+2. Review the [Examples](examples.md) for usage patterns
+3. Ensure your Firebase configuration is correct
+4. Check the browser console for detailed error messages

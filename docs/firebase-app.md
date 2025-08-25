@@ -1,26 +1,29 @@
-# Firebase App
+# Firebase App Configuration
 
-Core configuration, service injection, and app lifecycle management for ng-firebase-signals.
+The Firebase App module provides core configuration and service injection for Firebase and Google AI services.
 
-## 🔧 Configuration
+## Overview
 
-### Basic Configuration
+This module handles the initialization and configuration of Firebase services and provides them through Angular's dependency injection system. It's the foundation that all other modules depend on.
+
+## Configuration
+
+### Basic Setup
 
 ```typescript
-import { provideFirebase } from 'ng-firebase-signals';
+import { ApplicationConfig } from '@angular/core';
+import { provideFirebase } from '@ng-firebase-signals/core';
 
-const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
-};
-
-export const appConfig = {
+export const appConfig: ApplicationConfig = {
   providers: [
-    provideFirebase(firebaseConfig)
+    provideFirebase({
+      apiKey: 'your-api-key',
+      authDomain: 'your-project.firebaseapp.com',
+      projectId: 'your-project-id',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: 'your-app-id'
+    })
   ]
 };
 ```
@@ -28,439 +31,219 @@ export const appConfig = {
 ### With Google AI
 
 ```typescript
-const firebaseConfig = {
-  // ... standard Firebase config
-  googleAI: {
-    apiKey: "your-google-ai-key",
-    defaultModel: "gemini-pro" // optional
-  }
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideFirebase({
+      // Firebase configuration
+      apiKey: 'your-api-key',
+      authDomain: 'your-project.firebaseapp.com',
+      projectId: 'your-project-id',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: 'your-app-id',
+      
+      // Google AI configuration
+      googleAI: {
+        apiKey: 'your-google-ai-key'
+      }
+    })
+  ]
 };
 ```
 
-### Environment-Specific Configuration
+## Types
+
+### FirebaseConfig
 
 ```typescript
-// environment.ts
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+  measurementId?: string;
+  databaseURL?: string;
+  googleAI?: {
+    apiKey: string;
+  };
+}
+```
+
+### ConfiguredServices
+
+```typescript
+export interface ConfiguredServices {
+  auth: Auth;
+  firestore: Firestore;
+  storage: FirebaseStorage;
+  googleAI?: GoogleGenerativeAI;
+}
+```
+
+## Injection Tokens
+
+The module provides several injection tokens for accessing Firebase services:
+
+### FIREBASE_AUTH
+Firebase Authentication service.
+
+```typescript
+import { inject } from '@angular/core';
+import { FIREBASE_AUTH } from '@ng-firebase-signals/core';
+
+export class AuthComponent {
+  private auth = inject(FIREBASE_AUTH);
+  
+  getCurrentUser() {
+    return this.auth.currentUser;
+  }
+}
+```
+
+### FIREBASE_FIRESTORE
+Firebase Firestore service.
+
+```typescript
+import { inject } from '@angular/core';
+import { FIREBASE_FIRESTORE } from '@ng-firebase-signals/core';
+
+export class FirestoreComponent {
+  private firestore = inject(FIREBASE_FIRESTORE);
+  
+  getCollection() {
+    return collection(this.firestore, 'users');
+  }
+}
+```
+
+### FIREBASE_STORAGE
+Firebase Storage service.
+
+```typescript
+import { inject } from '@angular/core';
+import { FIREBASE_STORAGE } from '@ng-firebase-signals/core';
+
+export class StorageComponent {
+  private storage = inject(FIREBASE_STORAGE);
+  
+  getStorageRef() {
+    return ref(this.storage, 'uploads/');
+  }
+}
+```
+
+### GOOGLE_AI
+Google Generative AI service (optional).
+
+```typescript
+import { inject } from '@angular/core';
+import { GOOGLE_AI } from '@ng-firebase-signals/core';
+
+export class AIComponent {
+  private googleAI = inject(GOOGLE_AI, { optional: true });
+  
+  async generateText() {
+    if (this.googleAI) {
+      const model = this.googleAI.getGenerativeModel({ model: 'gemini-pro' });
+      return await model.generateContent('Hello, world!');
+    }
+  }
+}
+```
+
+## Environment Configuration
+
+For better security and environment management, use environment files:
+
+### environment.ts
+```typescript
 export const environment = {
   production: false,
   firebase: {
-    apiKey: "dev-key",
-    authDomain: "dev-project.firebaseapp.com",
-    projectId: "dev-project",
-    storageBucket: "dev-project.appspot.com",
-    messagingSenderId: "123",
-    appId: "dev-app"
+    apiKey: 'dev-api-key',
+    authDomain: 'dev-project.firebaseapp.com',
+    projectId: 'dev-project-id',
+    storageBucket: 'dev-project.appspot.com',
+    messagingSenderId: '123456789',
+    appId: 'dev-app-id'
+  },
+  googleAI: {
+    apiKey: 'dev-google-ai-key'
   }
 };
+```
 
-// app.config.ts
+### environment.prod.ts
+```typescript
+export const environment = {
+  production: true,
+  firebase: {
+    apiKey: 'prod-api-key',
+    authDomain: 'prod-project.firebaseapp.com',
+    projectId: 'prod-project-id',
+    storageBucket: 'prod-project.appspot.com',
+    messagingSenderId: '123456789',
+    appId: 'prod-app-id'
+  },
+  googleAI: {
+    apiKey: 'prod-google-ai-key'
+  }
+};
+```
+
+### app.config.ts
+```typescript
 import { environment } from '../environments/environment';
 
-export const appConfig = {
+export const appConfig: ApplicationConfig = {
   providers: [
-    provideFirebase(environment.firebase)
+    provideFirebase({
+      ...environment.firebase,
+      googleAI: environment.googleAI
+    })
   ]
 };
 ```
 
-## 🚀 Service Injection
+## Error Handling
 
-### Get All Services
+The module provides graceful error handling for missing configurations:
 
 ```typescript
-import { useFirebase } from 'ng-firebase-signals';
+// Google AI is optional - inject with { optional: true }
+const googleAI = inject(GOOGLE_AI, { optional: true });
 
-@Component({...})
-export class MyComponent {
-  const { app, auth, firestore, storage, googleAI } = useFirebase();
-  
-  // Use individual services
-  console.log('Firebase app:', app);
-  console.log('Auth service:', auth);
-  console.log('Firestore:', firestore);
-  console.log('Storage:', storage);
-  console.log('Google AI:', googleAI);
+if (!googleAI) {
+  console.warn('Google AI not configured');
+  // Handle missing configuration
 }
 ```
 
-### Get Individual Services
+## Best Practices
 
-```typescript
-import { 
-  useAuth, 
-  useFirestore, 
-  useStorage, 
-  useGoogleAI 
-} from 'ng-firebase-signals';
+1. **Environment Variables**: Use environment files for different configurations
+2. **Security**: Never commit API keys to version control
+3. **Optional Services**: Use `{ optional: true }` for services that might not be configured
+4. **Error Handling**: Always check if services are available before using them
+5. **Type Safety**: Use the provided types for better development experience
 
-@Component({...})
-export class MyComponent {
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const storage = useStorage();
-  const googleAI = useGoogleAI();
-  
-  // Use services directly
-  const user = auth.currentUser;
-  const usersCollection = collection(firestore, 'users');
-  const storageRef = ref(storage, 'uploads/');
-}
-```
-
-### Service Availability
-
-```typescript
-import { useGoogleAI } from 'ng-firebase-signals';
-
-@Component({...})
-export class MyComponent {
-  const googleAI = useGoogleAI();
-  
-  if (googleAI) {
-    // Google AI is configured and available
-    const model = googleAI.getGenerativeModel({ model: 'gemini-pro' });
-  } else {
-    // Google AI is not configured
-    console.log('Google AI not available');
-  }
-}
-```
-
-## 📊 App Status & Lifecycle
-
-### App Status
-
-```typescript
-import { useAppStatus } from 'ng-firebase-signals';
-
-@Component({...})
-export class AppComponent {
-  const { status, isReady, hasError, error } = useAppStatus();
-  
-  // Check app status
-  if (status() === 'initializing') {
-    console.log('Firebase is initializing...');
-  }
-  
-  if (isReady()) {
-    console.log('Firebase is ready!');
-  }
-  
-  if (hasError()) {
-    console.error('Firebase error:', error());
-  }
-}
-```
-
-### App Lifecycle
-
-```typescript
-import { useAppLifecycle } from 'ng-firebase-signals';
-
-@Component({...})
-export class AppComponent {
-  const { isInitialized, isDestroyed, markInitialized } = useAppLifecycle();
-  
-  ngOnInit() {
-    // Mark app as initialized when ready
-    if (this.appStatus.isReady()) {
-      markInitialized();
-    }
-  }
-  
-  // Check if app is destroyed
-  if (isDestroyed()) {
-    console.log('App is being destroyed');
-  }
-}
-```
-
-### Complete App Component
-
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { 
-  useAppStatus, 
-  useAppLifecycle, 
-  useAuthState 
-} from 'ng-firebase-signals';
-
-@Component({
-  selector: 'app-root',
-  template: `
-    <div>
-      <!-- Loading State -->
-      <div *ngIf="appStatus.status() === 'initializing'" class="loading">
-        <div class="spinner"></div>
-        <p>Initializing Firebase...</p>
-      </div>
-      
-      <!-- Error State -->
-      <div *ngIf="appStatus.hasError()" class="error">
-        <h2>Firebase Error</h2>
-        <p>{{ appStatus.error() }}</p>
-        <button (click)="retry()">Retry</button>
-      </div>
-      
-      <!-- Ready State -->
-      <div *ngIf="appStatus.isReady()" class="app">
-        <ng-container *ngIf="!authState.loading()">
-          <!-- Your app content here -->
-          <router-outlet></router-outlet>
-        </ng-container>
-      </div>
-    </div>
-  `
-})
-export class AppComponent implements OnInit {
-  appStatus = useAppStatus();
-  appLifecycle = useAppLifecycle();
-  authState = useAuthState();
-  
-  ngOnInit() {
-    // Wait for Firebase to be ready
-    if (this.appStatus.isReady()) {
-      this.appLifecycle.markInitialized();
-    }
-  }
-  
-  retry() {
-    // Reload the app to retry Firebase initialization
-    window.location.reload();
-  }
-}
-```
-
-## ✅ Configuration Validation
-
-### Validate Configuration
-
-```typescript
-import { validateFirebaseConfig } from 'ng-firebase-signals';
-
-const firebaseConfig = {
-  apiKey: "your-key",
-  authDomain: "your-domain",
-  projectId: "your-project",
-  storageBucket: "your-bucket",
-  messagingSenderId: "123",
-  appId: "your-app"
-};
-
-const errors = validateFirebaseConfig(firebaseConfig);
-
-if (errors.length > 0) {
-  console.error('Firebase configuration errors:');
-  errors.forEach(error => console.error(`- ${error}`));
-} else {
-  console.log('Firebase configuration is valid');
-}
-```
-
-### Required Fields
-
-The following fields are required in your Firebase configuration:
-
-- `apiKey` - Your Firebase API key
-- `authDomain` - Your Firebase auth domain
-- `projectId` - Your Firebase project ID
-- `storageBucket` - Your Firebase storage bucket
-- `messagingSenderId` - Your Firebase messaging sender ID
-- `appId` - Your Firebase app ID
-
-### Optional Fields
-
-- `measurementId` - Google Analytics measurement ID
-- `databaseURL` - Realtime Database URL (if using)
-- `googleAI` - Google AI configuration object
-
-## 🌍 Environment Detection
-
-### Detect Environment
-
-```typescript
-import { detectEnvironment } from 'ng-firebase-signals';
-
-@Component({...})
-export class AppComponent {
-  const environment = detectEnvironment();
-  
-  if (environment === 'development') {
-    console.log('Running in development mode');
-  } else if (environment === 'production') {
-    console.log('Running in production mode');
-  } else if (environment === 'test') {
-    console.log('Running in test mode');
-  }
-}
-```
-
-### Environment-Specific Behavior
-
-```typescript
-import { detectEnvironment } from 'ng-firebase-signals';
-
-@Component({...})
-export class AppComponent {
-  const environment = detectEnvironment();
-  
-  // Enable debug logging in development
-  if (environment === 'development') {
-    console.log('Debug mode enabled');
-    // Enable Firebase debug logging
-    // firebase.setLogLevel('debug');
-  }
-  
-  // Use different configurations based on environment
-  const config = environment === 'production' 
-    ? productionConfig 
-    : developmentConfig;
-}
-```
-
-## 🔧 Advanced Configuration
-
-### Custom Provider Configuration
-
-```typescript
-import { provideFirebase } from 'ng-firebase-signals';
-
-export const appConfig = {
-  providers: [
-    // Firebase configuration
-    provideFirebase(firebaseConfig),
-    
-    // Additional providers
-    provideRouter(routes),
-    provideAnimations(),
-    
-    // Custom providers
-    {
-      provide: 'API_BASE_URL',
-      useValue: environment.apiUrl
-    }
-  ]
-};
-```
-
-### Multiple Firebase Apps
-
-```typescript
-// For multiple Firebase projects
-const primaryConfig = {
-  apiKey: "primary-key",
-  projectId: "primary-project",
-  // ... other config
-};
-
-const secondaryConfig = {
-  apiKey: "secondary-key",
-  projectId: "secondary-project",
-  // ... other config
-};
-
-export const appConfig = {
-  providers: [
-    provideFirebase(primaryConfig, 'primary'),
-    provideFirebase(secondaryConfig, 'secondary')
-  ]
-};
-```
-
-## 🧪 Testing
-
-### Test Configuration
-
-```typescript
-// test-setup.ts
-import { TestBed } from '@angular/core/testing';
-import { provideFirebase } from 'ng-firebase-signals';
-
-const testConfig = {
-  apiKey: "test-key",
-  authDomain: "test.firebaseapp.com",
-  projectId: "test-project",
-  storageBucket: "test.appspot.com",
-  messagingSenderId: "123",
-  appId: "test-app"
-};
-
-TestBed.configureTestingModule({
-  providers: [
-    provideFirebase(testConfig)
-  ]
-});
-```
-
-### Mock Services
-
-```typescript
-// For testing without Firebase
-const mockFirebaseConfig = {
-  apiKey: "mock-key",
-  authDomain: "mock.firebaseapp.com",
-  projectId: "mock-project",
-  storageBucket: "mock.appspot.com",
-  messagingSenderId: "123",
-  appId: "mock-app"
-};
-
-// In your test
-TestBed.configureTestingModule({
-  providers: [
-    provideFirebase(mockFirebaseConfig)
-  ]
-});
-```
-
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-#### Firebase Not Initializing
+**"Firebase not configured" error**
+- Ensure you've called `provideFirebase()` in your app configuration
+- Check that your Firebase config object is correct
+- Verify all required fields are present
 
-**Problem**: Firebase services are not available.
+**"Google AI not configured" error**
+- Make sure you've provided the `googleAI.apiKey` in your configuration
+- Use `{ optional: true }` when injecting `GOOGLE_AI` if it's not required
+- Verify your Google AI API key is valid
 
-**Solution**: Check that `provideFirebase()` is included in your app providers.
-
-#### Configuration Errors
-
-**Problem**: "Invalid Firebase configuration" errors.
-
-**Solution**: Use `validateFirebaseConfig()` to check your configuration.
-
-#### Service Injection Errors
-
-**Problem**: "No provider for FIREBASE_AUTH" errors.
-
-**Solution**: Ensure `provideFirebase()` is called before using any Firebase services.
-
-#### Google AI Not Available
-
-**Problem**: `useGoogleAI()` returns `null`.
-
-**Solution**: Add `googleAI.apiKey` to your Firebase configuration.
-
-### Debug Mode
-
-```typescript
-// Enable debug logging
-if (detectEnvironment() === 'development') {
-  console.log('Firebase config:', firebaseConfig);
-  console.log('App status:', appStatus.status());
-  console.log('Services available:', {
-    auth: !!useAuth(),
-    firestore: !!useFirestore(),
-    storage: !!useStorage(),
-    googleAI: !!useGoogleAI()
-  });
-}
-```
-
-## 📚 Next Steps
-
-- [Authentication](authentication.md) - User management and auth state
-- [Firestore](firestore.md) - Database operations and real-time data
-- [Storage](storage.md) - File management and uploads
-- [AI](ai.md) - Google AI integration and text generation
-- [Examples](examples.md) - Complete integration patterns
+**Service injection errors**
+- Ensure you're importing the correct injection tokens
+- Check that the services are properly configured in your Firebase project
+- Verify your Firebase project has the required services enabled
