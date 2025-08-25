@@ -1,0 +1,78 @@
+<div class="container">
+  <h1>{{ title() }}</h1>
+  
+  <!-- Loading State -->
+  <div *ngIf="userState().isLoading" class="loading">
+    Loading authentication state...
+  </div>
+  
+  <!-- Authenticated User -->
+  <div *ngIf="userState().isAuthenticated && !userState().isLoading" class="authenticated">
+    <h2>Welcome, {{ userState().currentUser?.displayName || userState().currentUser?.email }}!</h2>
+    <div class="user-info">
+      <p><strong>Email:</strong> {{ userState().currentUser?.email }}</p>
+      <p><strong>UID:</strong> {{ userState().currentUser?.uid }}</p>
+      <p><strong>Email Verified:</strong> {{ userState().currentUser?.emailVerified ? 'Yes' : 'No' }}</p>
+    </div>
+    <button (click)="logout()" class="btn btn-danger">Sign Out</button>
+  </div>
+  
+  <!-- Not Authenticated -->
+  <div *ngIf="!userState().isAuthenticated && !userState().isLoading" class="auth-forms">
+    <h2>{{ isSignUp() ? 'Create Account' : 'Sign In' }}</h2>
+    
+    <!-- Google Sign In -->
+    <div class="google-signin">
+      <button (click)="loginWithGoogle()" class="btn btn-google">
+        Sign in with Google
+      </button>
+    </div>
+    
+    <div class="divider">or</div>
+    
+    <!-- Email/Password Form -->
+    <form (ngSubmit)="loginWithEmail()" class="email-form">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input 
+          type="email" 
+          id="email" 
+          [value]="email()" 
+          (input)="email.set($any($event.target).value)"
+          required
+        >
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input 
+          type="password" 
+          id="password" 
+          [value]="password()" 
+          (input)="password.set($any($event.target).value)"
+          required
+        >
+      </div>
+      
+      <div class="form-group" *ngIf="isSignUp()">
+        <label for="displayName">Display Name (optional):</label>
+        <input 
+          type="text" 
+          id="displayName" 
+          [value]="displayName()" 
+          (input)="displayName.set($any($event.target).value)"
+        >
+      </div>
+      
+      <button type="submit" class="btn btn-primary">
+        {{ isSignUp() ? 'Create Account' : 'Sign In' }}
+      </button>
+    </form>
+    
+    <div class="toggle-form">
+      <button (click)="toggleSignUp()" class="btn btn-link">
+        {{ isSignUp() ? 'Already have an account? Sign In' : 'Need an account? Sign Up' }}
+      </button>
+    </div>
+  </div>
+</div>

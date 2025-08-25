@@ -1,0 +1,166 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 2rem;
+}
+
+h2 {
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.authenticated {
+  background: #f8f9fa;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.user-info {
+  background: white;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  border: 1px solid #dee2e6;
+}
+
+.user-info p {
+  margin: 0.5rem 0;
+}
+
+.auth-forms {
+  background: #f8f9fa;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.google-signin {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.divider {
+  text-align: center;
+  margin: 1rem 0;
+  color: #666;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 45%;
+  height: 1px;
+  background: #dee2e6;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.email-form {
+  margin-top: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.btn-google {
+  background: #4285f4;
+  color: white;
+  width: 100%;
+}
+
+.btn-google:hover {
+  background: #3367d6;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.btn-link {
+  background: none;
+  color: #007bff;
+  text-decoration: underline;
+  padding: 0.5rem 0;
+}
+
+.btn-link:hover {
+  color: #0056b3;
+}
+
+.toggle-form {
+  text-align: center;
+  margin-top: 1rem;
+}
