@@ -1,21 +1,23 @@
 # AI
 
-The AI module provides reactive Google Generative AI operations using Angular signals.
+The AI module provides Firebase AI integration using Google's Generative AI models with proper output formatting.
 
 ## Quick Start
 
 ```typescript
 import { provideFirebase } from '@ng-firebase-signals/core';
-import { generateText, createChat } from '@ng-firebase-signals/core';
+import { generateText, createChat, generateData, Schema } from '@ng-firebase-signals/core';
 
 // In your app.config.ts
 export const appConfig: ApplicationConfig = {
   providers: [
     provideFirebase({
-      // your Firebase config
-      googleAI: {
-        apiKey: 'your-google-ai-key'
-      }
+      apiKey: 'your-api-key',
+      authDomain: 'your-project.firebaseapp.com',
+      projectId: 'your-project-id',
+      storageBucket: 'your-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: 'your-app-id'
     })
   ]
 };
@@ -24,6 +26,30 @@ export const appConfig: ApplicationConfig = {
 export class AIComponent {
   async generateContent() {
     const response = await generateText('Write a short story about a robot.');
+    console.log(response.text);
+  }
+  
+  async generateMockData() {
+    const schema = Schema.object({
+      properties: {
+        users: Schema.array({
+          items: Schema.object({
+            properties: {
+              name: Schema.string(),
+              age: Schema.number(),
+              email: Schema.string(),
+              isActive: Schema.boolean()
+            }
+          })
+        })
+      }
+    });
+    
+    const response = await generateData(
+      schema,
+      'Generate 5 realistic user profiles',
+      { count: 5 }
+    );
     console.log(response.text);
   }
 }
@@ -35,7 +61,7 @@ export class AIComponent {
 
 #### `generateText(prompt: string, options?: TextGenerationOptions): Promise<AIResponse>`
 
-Generates text using Google's Generative AI models.
+Generates text using Firebase AI with Google's Generative AI models.
 
 **Parameters:**
 - `prompt` - The text prompt to send to the AI
@@ -47,7 +73,7 @@ Generates text using Google's Generative AI models.
 ```typescript
 try {
   const response = await generateText('Explain quantum computing in simple terms', {
-    model: 'gemini-pro',
+    model: 'gemini-2.5-flash',
     temperature: 0.3,
     maxOutputTokens: 1000
   });
@@ -56,6 +82,95 @@ try {
   console.log('Tokens used:', response.usage.totalTokens);
 } catch (error) {
   console.error('Generation failed:', error);
+}
+```
+
+### Data Generation
+
+#### `generateData(schema: Schema, prompt: string, options?: DataGenerationOptions): Promise<AIResponse>`
+
+Generates structured data based on a Firebase AI Schema with proper output formatting.
+
+**Parameters:**
+- `schema` - Firebase AI Schema object defining the data structure
+- `prompt` - The prompt describing what data to generate
+- `options` - Optional configuration for data generation
+
+**Returns:** Promise with the AI response containing generated data in JSON format
+
+**Usage:**
+```typescript
+import { Schema } from '@ng-firebase-signals/core';
+
+// Define schema using Firebase AI Schema
+const userSchema = Schema.object({
+  properties: {
+    users: Schema.array({
+      items: Schema.object({
+        properties: {
+          id: Schema.number(),
+          name: Schema.string(),
+          email: Schema.string(),
+          age: Schema.number(),
+          isActive: Schema.boolean(),
+          createdAt: Schema.string()
+        }
+      })
+    })
+  }
+});
+
+try {
+  const response = await generateData(
+    userSchema,
+    'Generate 10 realistic user profiles for a social media platform',
+    { temperature: 0.2 }
+  );
+  
+  const users = JSON.parse(response.text);
+  console.log('Generated users:', users);
+} catch (error) {
+  console.error('Data generation failed:', error);
+}
+
+// Complex nested schema
+const productSchema = Schema.object({
+  properties: {
+    products: Schema.array({
+      items: Schema.object({
+        properties: {
+          id: Schema.number(),
+          name: Schema.string(),
+          price: Schema.number(),
+          category: Schema.string(),
+          description: Schema.string(),
+          inStock: Schema.boolean(),
+          variants: Schema.array({
+            items: Schema.object({
+              properties: {
+                size: Schema.string(),
+                color: Schema.string(),
+                price: Schema.number()
+              }
+            })
+          })
+        }
+      })
+    })
+  }
+});
+
+try {
+  const response = await generateData(
+    productSchema,
+    'Create 5 e-commerce products with multiple variants for an online store',
+    { temperature: 0.1 }
+  );
+  
+  const products = JSON.parse(response.text);
+  console.log('Generated products:', products);
+} catch (error) {
+  console.error('Data generation failed:', error);
 }
 ```
 
@@ -76,7 +191,7 @@ Generates text in real-time streaming format.
 async function streamText() {
   try {
     const stream = generateTextStream('Write a poem about nature', {
-      model: 'gemini-pro',
+      model: 'gemini-2.5-flash',
       temperature: 0.8
     });
     
@@ -110,7 +225,7 @@ Creates a chat session with the AI model.
 **Usage:**
 ```typescript
 const chat = createChat('You are a helpful coding assistant.', {
-  model: 'gemini-pro',
+  model: 'gemini-2.5-flash',
   temperature: 0.2
 });
 
@@ -152,7 +267,7 @@ const prompts = [
 
 try {
   const responses = await generateBatch(prompts, {
-    model: 'gemini-pro',
+    model: 'gemini-2.5-flash',
     temperature: 0.7
   });
   
@@ -190,7 +305,16 @@ export interface TextGenerationOptions {
   maxOutputTokens?: number;
   topK?: number;
   topP?: number;
-  safetySettings?: SafetySetting[];
+  safetySettings?: any[];
+}
+```
+
+### `DataGenerationOptions`
+```typescript
+export interface DataGenerationOptions extends TextGenerationOptions {
+  count?: number;
+  format?: 'json' | 'csv' | 'yaml';
+  validateSchema?: boolean;
 }
 ```
 
@@ -210,7 +334,7 @@ export interface ChatOptions {
   maxOutputTokens?: number;
   topK?: number;
   topP?: number;
-  safetySettings?: SafetySetting[];
+  safetySettings?: any[];
 }
 ```
 
@@ -221,6 +345,7 @@ export type SupportedModels =
   | 'gemini-pro-vision'
   | 'gemini-1.5-pro'
   | 'gemini-1.5-flash'
+  | 'gemini-2.5-flash'
   | 'embedding-001';
 ```
 
@@ -240,7 +365,7 @@ export class TextGeneratorComponent {
     
     try {
       const response = await generateText(prompt, {
-        model: 'gemini-pro',
+        model: 'gemini-2.5-flash',
         temperature: 0.7,
         maxOutputTokens: 500
       });
@@ -250,6 +375,98 @@ export class TextGeneratorComponent {
       this.error = error.message;
     } finally {
       this.isGenerating = false;
+    }
+  }
+}
+```
+
+### Data Generation for Testing
+
+```typescript
+export class MockDataGeneratorComponent {
+  async generateUserData() {
+    const userSchema = Schema.object({
+      properties: {
+        users: Schema.array({
+          items: Schema.object({
+            properties: {
+              id: Schema.number(),
+              firstName: Schema.string(),
+              lastName: Schema.string(),
+              email: Schema.string(),
+              phone: Schema.string(),
+              address: Schema.object({
+                properties: {
+                  street: Schema.string(),
+                  city: Schema.string(),
+                  state: Schema.string(),
+                  zipCode: Schema.string()
+                }
+              }),
+              preferences: Schema.object({
+                properties: {
+                  theme: Schema.string(),
+                  notifications: Schema.boolean(),
+                  language: Schema.string()
+                }
+              }),
+              createdAt: Schema.string(),
+              lastLogin: Schema.string()
+            }
+          })
+        })
+      }
+    });
+    
+    try {
+      const response = await generateData(
+        userSchema,
+        'Generate 20 realistic user profiles for a social media platform',
+        { temperature: 0.1 }
+      );
+      
+      const users = JSON.parse(response.text);
+      return users;
+    } catch (error) {
+      console.error('Failed to generate user data:', error);
+      throw error;
+    }
+  }
+  
+  async generateProductData() {
+    const productSchema = Schema.object({
+      properties: {
+        products: Schema.array({
+          items: Schema.object({
+            properties: {
+              id: Schema.number(),
+              name: Schema.string(),
+              description: Schema.string(),
+              price: Schema.number(),
+              category: Schema.string(),
+              brand: Schema.string(),
+              sku: Schema.string(),
+              inStock: Schema.boolean(),
+              rating: Schema.number(),
+              reviews: Schema.number()
+            }
+          })
+        })
+      }
+    });
+    
+    try {
+      const response = await generateData(
+        productSchema,
+        'Create 50 e-commerce products for an online store',
+        { temperature: 0.2 }
+      );
+      
+      const products = JSON.parse(response.text);
+      return products;
+    } catch (error) {
+      console.error('Failed to generate product data:', error);
+      throw error;
     }
   }
 }
@@ -273,7 +490,7 @@ export class StreamingChatComponent {
     
     try {
       const stream = generateTextStream(userMessage, {
-        model: 'gemini-pro',
+        model: 'gemini-2.5-flash',
         temperature: 0.8
       });
       
@@ -301,7 +518,7 @@ export class StreamingChatComponent {
 ```typescript
 export class ChatAssistantComponent {
   chat = createChat('You are a helpful programming assistant. Provide clear, concise answers with code examples when appropriate.', {
-    model: 'gemini-pro',
+    model: 'gemini-2.5-flash',
     temperature: 0.3
   });
   
@@ -339,7 +556,7 @@ export class ContentAnalyzerComponent {
   async analyzeContent(content: string) {
     try {
       const analysis = await generateText(`Analyze the following content and provide insights:\n\n${content}`, {
-        model: 'gemini-pro',
+        model: 'gemini-2.5-flash',
         temperature: 0.2,
         maxOutputTokens: 1000
       });
@@ -353,7 +570,7 @@ export class ContentAnalyzerComponent {
   async summarizeText(text: string, maxLength: number = 200) {
     try {
       const summary = await generateText(`Summarize the following text in ${maxLength} characters or less:\n\n${text}`, {
-        model: 'gemini-pro',
+        model: 'gemini-2.5-flash',
         temperature: 0.1,
         maxOutputTokens: 500
       });
@@ -369,18 +586,18 @@ export class ContentAnalyzerComponent {
 ## Best Practices
 
 1. **Error Handling**: Always wrap AI operations in try-catch blocks
-2. **Model Selection**: Choose appropriate models for your use case
+2. **Model Selection**: Use `gemini-2.5-flash` for most use cases
 3. **Temperature Control**: Use lower temperatures (0.1-0.3) for factual content, higher (0.7-0.9) for creative content
 4. **Token Limits**: Set appropriate maxOutputTokens to control response length
-5. **Safety Settings**: Use default safety settings unless you have specific requirements
-6. **Streaming**: Use streaming for real-time user experiences
-7. **Chat History**: Manage chat history appropriately for your application
+5. **Streaming**: Use streaming for real-time user experiences
+6. **Chat History**: Manage chat history appropriately for your application
+7. **Data Generation**: Use lower temperatures (0.1-0.3) for consistent data generation
+8. **Schema Design**: Use Firebase AI Schema for proper output formatting
 
 ## Security Considerations
 
 - Never expose API keys in client-side code
 - Implement proper rate limiting
 - Validate and sanitize user inputs before sending to AI
-- Use appropriate safety settings for your use case
 - Monitor AI usage and costs
 - Implement content filtering for user-generated content

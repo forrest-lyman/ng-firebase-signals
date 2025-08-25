@@ -1,15 +1,12 @@
 // fx/ai.ts
 import { signal, inject, DestroyRef } from '@angular/core';
 import {
-  GenerativeModel,
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-  SafetySetting,
-  GenerateContentResult,
-  GenerateContentStreamResult
-} from '@google/generative-ai';
-import { GOOGLE_AI } from './app';
+  getAI,
+  getGenerativeModel,
+  VertexAIBackend,
+  Schema
+} from 'firebase/ai';
+import { FIREBASE_APP } from './app';
 
 export type AIStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -32,7 +29,7 @@ export interface TextGenerationOptions {
   maxOutputTokens?: number;
   topK?: number;
   topP?: number;
-  safetySettings?: SafetySetting[];
+  safetySettings?: any[];
 }
 
 export interface ChatMessage {
@@ -46,11 +43,17 @@ export interface ChatOptions {
   maxOutputTokens?: number;
   topK?: number;
   topP?: number;
-  safetySettings?: SafetySetting[];
+  safetySettings?: any[];
 }
 
 export interface EmbeddingOptions {
   model?: string;
+}
+
+export interface DataGenerationOptions extends TextGenerationOptions {
+  count?: number;
+  format?: 'json' | 'csv' | 'yaml';
+  validateSchema?: boolean;
 }
 
 export type SupportedModels = 
@@ -58,48 +61,25 @@ export type SupportedModels =
   | 'gemini-pro-vision'
   | 'gemini-1.5-pro'
   | 'gemini-1.5-flash'
+  | 'gemini-2.5-flash'
   | 'embedding-001';
-
-// Default safety settings
-const DEFAULT_SAFETY_SETTINGS: SafetySetting[] = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-];
 
 // Text generation function
 export async function generateText(
   prompt: string,
   options: TextGenerationOptions = {}
 ): Promise<AIResponse> {
-  const googleAI = inject(GOOGLE_AI, { optional: true });
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
 
-  if (!googleAI) {
-    throw new Error('Google AI not configured. Please provide googleAI.apiKey in your Firebase config.');
-  }
-
-  const model = googleAI.getGenerativeModel({
-    model: options.model || 'gemini-pro',
+  const model = getGenerativeModel(ai, {
+    model: options.model || 'gemini-2.5-flash',
     generationConfig: {
       temperature: options.temperature || 0.7,
       maxOutputTokens: options.maxOutputTokens || 2048,
       topK: options.topK || 40,
       topP: options.topP || 0.95,
-    },
-    safetySettings: options.safetySettings || DEFAULT_SAFETY_SETTINGS,
+    }
   });
 
   try {
@@ -110,26 +90,51 @@ export async function generateText(
   }
 }
 
+// Data generation function
+export async function generateData(
+  schema: any,
+  prompt: string,
+  options: DataGenerationOptions = {}
+): Promise<AIResponse> {
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
+
+  const model = getGenerativeModel(ai, {
+    model: options.model || 'gemini-2.5-flash',
+    generationConfig: {
+      temperature: options.temperature || 0.3,
+      maxOutputTokens: options.maxOutputTokens || 4096,
+      topK: options.topK || 40,
+      topP: options.topP || 0.95,
+      responseMimeType: 'application/json',
+      responseSchema: schema
+    }
+  });
+
+  try {
+    const result = await model.generateContent(prompt);
+    return await processResponse(result);
+  } catch (error: any) {
+    throw new Error(`Data generation failed: ${error.message}`);
+  }
+}
+
 // Streaming text generation function
 export async function* generateTextStream(
   prompt: string,
   options: TextGenerationOptions = {}
 ): AsyncGenerator<{ text: string; isComplete: boolean }> {
-  const googleAI = inject(GOOGLE_AI, { optional: true });
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
 
-  if (!googleAI) {
-    throw new Error('Google AI not configured. Please provide googleAI.apiKey in your Firebase config.');
-  }
-
-  const model = googleAI.getGenerativeModel({
-    model: options.model || 'gemini-pro',
+  const model = getGenerativeModel(ai, {
+    model: options.model || 'gemini-2.5-flash',
     generationConfig: {
       temperature: options.temperature || 0.7,
       maxOutputTokens: options.maxOutputTokens || 2048,
       topK: options.topK || 40,
       topP: options.topP || 0.95,
-    },
-    safetySettings: options.safetySettings || DEFAULT_SAFETY_SETTINGS,
+    }
   });
 
   try {
@@ -157,21 +162,17 @@ export function createChat(
   const status = signal<AIStatus>('idle');
   const error = signal<string | null>(null);
 
-  const googleAI = inject(GOOGLE_AI, { optional: true });
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
 
-  if (!googleAI) {
-    throw new Error('Google AI not configured. Please provide googleAI.apiKey in your Firebase config.');
-  }
-
-  const model = googleAI.getGenerativeModel({
-    model: options.model || 'gemini-pro',
+  const model = getGenerativeModel(ai, {
+    model: options.model || 'gemini-2.5-flash',
     generationConfig: {
       temperature: options.temperature || 0.7,
       maxOutputTokens: options.maxOutputTokens || 2048,
       topK: options.topK || 40,
       topP: options.topP || 0.95,
-    },
-    safetySettings: options.safetySettings || DEFAULT_SAFETY_SETTINGS,
+    }
   });
 
   const chat = model.startChat({
@@ -225,15 +226,11 @@ export async function generateEmbeddings(
   texts: string[],
   options: EmbeddingOptions = {}
 ) {
-  const googleAI = inject(GOOGLE_AI, { optional: true });
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
 
-  if (!googleAI) {
-    throw new Error('Google AI not configured. Please provide googleAI.apiKey in your Firebase config.');
-  }
-
-  // Note: Google Generative AI doesn't have a direct embeddings API in the current version
-  // This is a placeholder for future implementation
-  throw new Error('Embeddings are not yet supported in this version of Google Generative AI. Please use the text generation functions instead.');
+  // Note: Firebase AI doesn't have embeddings yet
+  throw new Error('Embeddings are not yet supported in Firebase AI. Please use the text generation functions instead.');
 }
 
 // Batch text generation function
@@ -241,21 +238,17 @@ export async function generateBatch(
   prompts: string[],
   options: TextGenerationOptions & { model?: SupportedModels } = {}
 ) {
-  const googleAI = inject(GOOGLE_AI, { optional: true });
+  const firebaseApp = inject(FIREBASE_APP);
+  const ai = getAI(firebaseApp, { backend: new VertexAIBackend('global') });
 
-  if (!googleAI) {
-    throw new Error('Google AI not configured. Please provide googleAI.apiKey in your Firebase config.');
-  }
-
-  const model = googleAI.getGenerativeModel({
-    model: options.model || 'gemini-pro',
+  const model = getGenerativeModel(ai, {
+    model: options.model || 'gemini-2.5-flash',
     generationConfig: {
       temperature: options.temperature || 0.7,
       maxOutputTokens: options.maxOutputTokens || 2048,
       topK: options.topK || 40,
       topP: options.topP || 0.95,
-    },
-    safetySettings: options.safetySettings || DEFAULT_SAFETY_SETTINGS,
+    }
   });
 
   const results: AIResponse[] = [];
@@ -278,7 +271,7 @@ export async function generateBatch(
 }
 
 // Process response and extract metadata
-async function processResponse(result: GenerateContentResult | GenerateContentStreamResult): Promise<AIResponse> {
+async function processResponse(result: any): Promise<AIResponse> {
   const response = await result.response;
   const text = response.text();
   
@@ -289,7 +282,7 @@ async function processResponse(result: GenerateContentResult | GenerateContentSt
       responseTokens: response.usageMetadata?.candidatesTokenCount || 0,
       totalTokens: response.usageMetadata?.totalTokenCount || 0,
     },
-    safetyRatings: response.candidates?.[0]?.safetyRatings?.map(rating => ({
+    safetyRatings: response.candidates?.[0]?.safetyRatings?.map((rating: any) => ({
       category: rating.category,
       probability: rating.probability
     })) || []
@@ -297,3 +290,6 @@ async function processResponse(result: GenerateContentResult | GenerateContentSt
 
   return aiResponse;
 }
+
+// Export Schema for convenience
+export { Schema };
