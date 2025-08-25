@@ -1,6 +1,6 @@
 {
   "name": "ng-firebase-signals",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "A minimal Angular library that provides reactive Firebase utilities using Angular signals",
   "homepage": "https://github.com/forrest-lyman/ng-firebase-signals",
   "repository": {
